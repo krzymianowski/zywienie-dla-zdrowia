@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<ruleset name="Zywienie dla Zdrowia">
+  <description>WordPress Coding Standards for the Żywienie dla Zdrowia plugin.</description>
+
+  <arg name="basepath" value="."/>
+  <arg name="colors"/>
+  <arg value="sp"/>
+
+  <file>.</file>
+  <exclude-pattern>*/vendor/*</exclude-pattern>
+
+  <config name="minimum_supported_wp_version" value="6.8"/>
+
+  <rule ref="WordPress"/>
+  <rule ref="WordPress.WP.I18n">
+    <properties>
+      <property name="text_domain" type="array">
+        <element value="zywienie-dla-zdrowia"/>
+      </property>
+    </properties>
+  </rule>
+</ruleset>

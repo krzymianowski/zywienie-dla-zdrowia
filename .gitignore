@@ -1,0 +1,8 @@
+/vendor/
+/.phpcs-cache
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
+*.zip
+composer.phar
