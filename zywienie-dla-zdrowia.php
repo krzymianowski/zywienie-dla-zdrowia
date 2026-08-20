@@ -14,3 +14,7 @@
  */
 
 defined( 'ABSPATH' ) || exit;
+
+require_once __DIR__ . '/includes/class-zfdz-menu-document.php';
+require_once __DIR__ . '/includes/class-zfdz-menu-filename-parse-result.php';
+require_once __DIR__ . '/includes/class-zfdz-menu-filename-parser.php';

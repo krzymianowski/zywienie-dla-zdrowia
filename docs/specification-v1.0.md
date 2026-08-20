@@ -2,7 +2,13 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Na **Etapie 0** opisane niżej moduły, źródła dokumentów, konfiguracja, cache i shortcode’y nie są jeszcze zaimplementowane. Obecne repozytorium zawiera wyłącznie pasywny szkielet wtyczki i narzędzia developerskie.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. W Etapie 1 zaimplementowano wyłącznie niezależny parser nazw jadłospisów, model dokumentu i jednoznaczny wynik parsowania. Opisane niżej skanowanie źródła dokumentów, moduły publiczne, konfiguracja, cache i shortcode’y pozostają planowane.
+
+## Zaimplementowany zakres Etapu 1
+
+Parser rozpoznaje wyłącznie nazwy zgodne z konwencją `YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`. Dla prawidłowej nazwy zwraca model zawierający oryginalny filename, datę początku, datę końca i niezmienioną nazwę dokumentu. Dla błędnej nazwy zwraca maszynowo czytelny kod błędu.
+
+Zaimplementowana walidacja obejmuje separatory ścieżek i NUL, rozszerzenie PDF, strukturę nazwy, rzeczywiste daty kalendarzowe, kolejność dat oraz niepustą nazwę Unicode. Parser nie otwiera plików, nie sprawdza MIME, nie korzysta z filesystemu ani WordPress API i nie renderuje treści.
 
 ## Cel
 

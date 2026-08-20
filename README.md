@@ -11,9 +11,11 @@ The repository is generic and is not tied to any particular organization or depl
 ### Implemented
 
 - A passive WordPress plugin bootstrap with a valid plugin header and direct-access guard.
+- A standalone parser for menu filenames using the `YYYY-MM-DD_YYYY-MM-DD_name.pdf` convention, with an immutable document model and machine-readable parse errors.
+- PHPUnit tests for filename structure, calendar dates, date ranges, extensions, unsafe path input, Unicode names, and boundary cases without loading WordPress.
 - Development-only Composer tooling for PHP_CodeSniffer and WordPress Coding Standards.
 - Initial project, security, contribution, and product-specification documentation.
-- A CI workflow for Composer validation, PHP syntax checking, and PHPCS.
+- A CI workflow for Composer validation, PHP syntax checking, PHPCS, and PHPUnit.
 
 ### Planned for v1.0
 
@@ -61,9 +63,10 @@ The minimum supported environment is WordPress 6.8 and PHP 8.2. PHP 8.3 or later
 composer install
 composer validate --strict
 composer lint
+composer test
 ```
 
-There are no runtime Composer dependencies and no unit-test infrastructure at this stage because the plugin has no testable business component yet.
+There are no runtime Composer dependencies. The unit tests run without WordPress and cover only the standalone menu filename parser introduced in Stage 1; directory scanning and user-facing functionality remain planned.
 
 Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md) and the repository instructions in [AGENTS.md](AGENTS.md).
 

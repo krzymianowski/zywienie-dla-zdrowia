@@ -11,9 +11,11 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 ### Zaimplementowano (Implemented)
 
 - Pasywny plik startowy wtyczki z poprawnym nagłówkiem i ochroną przed bezpośrednim uruchomieniem.
+- Niezależny parser nazw jadłospisów zgodnych z konwencją `YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`, niezmienny model dokumentu i maszynowo czytelne błędy parsowania.
+- Testy PHPUnit struktury nazw, dat kalendarzowych, zakresów dat, rozszerzeń, niebezpiecznych danych ścieżek, nazw Unicode i przypadków granicznych bez uruchamiania WordPressa.
 - Narzędzia developerskie Composer: PHP_CodeSniffer i WordPress Coding Standards.
 - Początkową dokumentację projektu, bezpieczeństwa, współpracy i specyfikacji produktu.
-- Workflow CI sprawdzający konfigurację Composer, składnię PHP i PHPCS.
+- Workflow CI sprawdzający konfigurację Composer, składnię PHP, PHPCS i PHPUnit.
 
 ### Planowane dla v1.0 (Planned for v1.0)
 
@@ -61,9 +63,10 @@ Minimalne wspierane środowisko to WordPress 6.8 oraz PHP 8.2. Zalecane jest PHP
 composer install
 composer validate --strict
 composer lint
+composer test
 ```
 
-Projekt nie ma zależności runtime. Na tym etapie nie dodano infrastruktury testów jednostkowych, ponieważ wtyczka nie zawiera jeszcze komponentu biznesowego wymagającego takich testów.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują wyłącznie niezależny parser nazw jadłospisów dodany w Etapie 1; skanowanie katalogów i funkcje interfejsu pozostają planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 

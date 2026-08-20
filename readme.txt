@@ -12,7 +12,7 @@ Development-stage tooling for publishing information related to a “Żywienie d
 
 The minimum supported environment is WordPress 6.8 and PHP 8.2. PHP 8.3 or later is recommended.
 
-Version 0.1.0 contains only a passive plugin bootstrap and development tooling. The planned business features are not implemented and this version is not presented as a stable release.
+Version 0.1.0 contains a passive plugin bootstrap, a standalone menu filename parser and document model, and development tooling. It does not scan directories or provide user-facing features, and this version is not presented as a stable release.
 
 The plugin is a technical publishing tool, not legal advice. It does not guarantee legal compliance. Site administrators remain responsible for the content, completeness, and accuracy of published information.
 
@@ -38,4 +38,5 @@ No. The privacy properties of an external form are outside the plugin's control 
 
 = Unreleased =
 
+* Added a standalone menu filename parser, document model, parse result, and unit tests.
 * Added the initial passive plugin bootstrap, project documentation, and development quality tooling.

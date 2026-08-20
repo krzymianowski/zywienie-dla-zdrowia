@@ -25,6 +25,7 @@ Run checks appropriate to the change. The current baseline is:
 composer validate --strict
 composer install
 composer lint
+composer test
 git diff --check
 ```
 

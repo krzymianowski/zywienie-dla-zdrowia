@@ -5,6 +5,7 @@
   "license": "GPL-2.0-or-later",
   "require-dev": {
     "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "phpunit/phpunit": "^11.5",
     "squizlabs/php_codesniffer": "^3.13",
     "wp-coding-standards/wpcs": "^3.2"
   },
@@ -19,7 +20,8 @@
       "@lint:php",
       "@phpcs"
     ],
-    "lint:php": "@php -l zywienie-dla-zdrowia.php",
-    "phpcs": "phpcs"
+    "lint:php": "@php tools/lint-php.php",
+    "phpcs": "phpcs",
+    "test": "phpunit"
   }
 }
