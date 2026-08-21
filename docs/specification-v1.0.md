@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, a Etap 2 — niezależny scanner katalogu wraz z sortowaniem, grupowaniem i raportowaniem problematycznych wpisów. Integracja z katalogiem uploads WordPressa, walidacja MIME i zawartości PDF, moduły publiczne, konfiguracja, cache i shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, a Etap 3 — ograniczony standalone validator kandydatów PDF. Integracja scanner–validator oraz integracja z katalogiem uploads WordPressa, moduły publiczne, konfiguracja, cache i shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -27,7 +27,25 @@ Scanner:
 - reprezentuje brak katalogu, błędny typ ścieżki, brak odczytu lub błąd skanowania przez kody katalogowe i puste kolekcje wyniku;
 - nie zapisuje absolutnej ścieżki źródłowej ani targetu symlinka w modelach wyniku.
 
-Scanner nie otwiera dokumentów, nie odczytuje ich zawartości, nie analizuje MIME ani magic bytes i nie potwierdza, że kandydat z rozszerzeniem `.pdf` jest rzeczywistym dokumentem PDF. Taka walidacja pozostaje wymagana przed przyszłym publicznym udostępnianiem plików. Scanner nie korzysta z WordPress API, nie tworzy katalogów i nie modyfikuje ani nie usuwa wpisów.
+Scanner nie otwiera dokumentów, nie odczytuje ich zawartości, nie analizuje MIME ani magic bytes i nie potwierdza, że kandydat z rozszerzeniem `.pdf` jest rzeczywistym dokumentem PDF. Etap 3 dostarcza osobny, ograniczony validator kandydatów PDF, ale jego integracja ze scannerem przed przyszłym publicznym udostępnianiem pozostaje planowana. Scanner nie korzysta z WordPress API, nie tworzy katalogów i nie modyfikuje ani nie usuwa wpisów.
+
+## Zaimplementowany zakres Etapu 3
+
+Standalone validator PDF przyjmuje absolutną ścieżkę pliku pochodzącą z zaufanej warstwy aplikacji, a nie bezpośrednio z requestu HTTP. Wynik nie przechowuje ani nie udostępnia ścieżki pliku, `realpath` ani targetu symlinka.
+
+Validator:
+
+- odrzuca bezpośredni symlink przed sprawdzeniem istnienia i typu pliku, dzięki czemu broken symlink zwraca `unsafe_symlink`;
+- sprawdza istnienie, zwykły typ i czytelność pliku oraz obsługuje błędy otwarcia, stat i odczytu kodami maszynowymi;
+- otwiera plik binarnie i nie wykonuje jego zawartości;
+- korzysta z `finfo` i `FILEINFO_MIME_TYPE`, jeżeli rozszerzenie `fileinfo` jest dostępne, akceptując `application/pdf` oraz `application/x-pdf`;
+- pomija MIME check bez odrzucania pliku, jeżeli `finfo` nie jest dostępne, ale traktuje techniczną awarię dostępnego detektora jako `mime_detection_failed`;
+- sprawdza dokładnie początkowy, ośmiobajtowy nagłówek `%PDF-X.Y`;
+- szuka `%%EOF` wyłącznie w ostatnich maksymalnie 4096 bajtach;
+- nie wczytuje całego dokumentu do pamięci i nie sprawdza rozszerzenia filename;
+- zwraca jedynie informację, czy plik jest **valid PDF candidate**, lub maszynowo czytelny kod błędu.
+
+Validator nie jest pełnym parserem PDF, nie analizuje obiektów, xref, skryptów, formularzy, embedded files, metadanych, podpisów ani szyfrowania. Nie wykrywa malware, nie sanitizuje ani nie konwertuje dokumentów i nie gwarantuje bezpieczeństwa ich zawartości. Nie zastępuje zabezpieczeń serwera, antywirusa ani kontroli administratora. Przenośne API PHP nie zapewnia tutaj pełnej ochrony przed wszystkimi race conditions filesystemu odpowiadającej `open(..., O_NOFOLLOW)`.
 
 ## Cel
 

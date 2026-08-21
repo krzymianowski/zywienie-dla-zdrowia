@@ -22,3 +22,5 @@ require_once __DIR__ . '/includes/class-zfdz-menu-scan-issue.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-period-group.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-scan-result.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-directory-scanner.php';
+require_once __DIR__ . '/includes/class-zfdz-pdf-validation-result.php';
+require_once __DIR__ . '/includes/class-zfdz-pdf-file-validator.php';

@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Standalone PDF candidate validator with optional MIME detection and bounded header and EOF checks.
+- Immutable PDF validation result and filesystem tests covering candidate validation, MIME mismatch, symlinks, bounded reads, and path-disclosure boundaries.
 - Standalone, non-recursive menu directory scanner with deterministic sorting and exact-period grouping.
 - Immutable scan result, scan issue, and menu period group models with machine-readable directory and entry errors.
 - Filesystem test coverage for directory failures, mixed entries, non-recursive scanning, symlink rejection, sorting, grouping, and path disclosure boundaries.

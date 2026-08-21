@@ -12,7 +12,7 @@ Development-stage tooling for publishing information related to a “Żywienie d
 
 The minimum supported environment is WordPress 6.8 and PHP 8.2. PHP 8.3 or later is recommended.
 
-Version 0.1.0 contains a passive plugin bootstrap, a standalone menu filename parser, a non-recursive directory scanner with deterministic sorting and grouping, related value objects, and development tooling. The scanner identifies candidates from entry types and filenames only; it does not validate MIME or PDF content. WordPress integration and user-facing features are not implemented, and this version is not presented as a stable release.
+Version 0.1.0 contains a passive plugin bootstrap, a standalone menu filename parser, a non-recursive directory scanner, a limited PDF candidate validator, related value objects, and development tooling. The validator checks selected file properties, optional MIME, a PDF header, and an EOF marker with bounded reads. It is not a full PDF parser, does not detect malware or sanitize documents, and does not guarantee document safety. Scanner-to-validator integration, WordPress integration, and user-facing features are not implemented, and this version is not presented as a stable release.
 
 The plugin is a technical publishing tool, not legal advice. It does not guarantee legal compliance. Site administrators remain responsible for the content, completeness, and accuracy of published information.
 
@@ -40,4 +40,5 @@ No. The privacy properties of an external form are outside the plugin's control 
 
 * Added a standalone menu filename parser, document model, parse result, and unit tests.
 * Added a standalone menu directory scanner with issue reporting, deterministic sorting, exact-period grouping, and filesystem tests.
+* Added a standalone PDF candidate validator, validation result, optional MIME checks, bounded header and EOF checks, and unit tests.
 * Added the initial passive plugin bootstrap, project documentation, and development quality tooling.

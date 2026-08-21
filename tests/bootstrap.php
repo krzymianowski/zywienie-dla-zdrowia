@@ -14,3 +14,5 @@ require_once $zfdz_tests_root . '/includes/class-zfdz-menu-scan-issue.php';
 require_once $zfdz_tests_root . '/includes/class-zfdz-menu-period-group.php';
 require_once $zfdz_tests_root . '/includes/class-zfdz-menu-scan-result.php';
 require_once $zfdz_tests_root . '/includes/class-zfdz-menu-directory-scanner.php';
+require_once $zfdz_tests_root . '/includes/class-zfdz-pdf-validation-result.php';
+require_once $zfdz_tests_root . '/includes/class-zfdz-pdf-file-validator.php';
