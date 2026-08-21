@@ -12,7 +12,7 @@ Development-stage tooling for publishing information related to a “Żywienie d
 
 The minimum supported environment is WordPress 6.8 and PHP 8.2. PHP 8.3 or later is recommended.
 
-Version 0.1.0 contains a standalone validated menu catalog pipeline, a deterministic current/upcoming/archive period classifier, and their first WordPress integration. During activation, the plugin resolves the current uploads base directory through WordPress API and idempotently creates `zywienie-dla-zdrowia/jadlospisy/`. A WordPress catalog provider connects that directory to the standalone pipeline only when explicitly requested. A catalog service caches successful results for approximately five minutes. The technical “Status publikacji” administration page displays catalog counters and issues, classifies periods against the current WordPress site date, reports whether a menu period applies today, and provides a capability- and nonce-protected manual refresh. The parameter-free `[zfdz_jadlospisy]` shortcode publicly renders grouped current and upcoming validated PDF candidates, while `[zfdz_jadlospisy_archiwum]` renders grouped archived periods newest first. Both use WordPress uploads URLs and the same cached catalog. Classification is calculated after catalog cache access and is not stored in the transient. Deactivation does not delete documents. The remaining modules are not implemented, and this version is not presented as a stable release.
+Version 0.1.0 contains a standalone validated menu catalog pipeline, a deterministic current/upcoming/archive period classifier, and their first WordPress integration. During activation, the plugin resolves the current uploads base directory through WordPress API and idempotently creates `zywienie-dla-zdrowia/jadlospisy/`. A WordPress catalog provider connects that directory to the standalone pipeline only when explicitly requested. A catalog service caches successful results for approximately five minutes. The technical “Status publikacji” administration page displays catalog counters and issues, classifies periods against the current WordPress site date, reports whether a menu period applies today, and provides a capability- and nonce-protected manual refresh. The parameter-free `[zfdz_jadlospisy]` shortcode publicly renders grouped current and upcoming validated PDF candidates, while `[zfdz_jadlospisy_archiwum]` renders grouped archived periods newest first. Both use WordPress uploads URLs and the same cached catalog. Classification is calculated after catalog cache access and is not stored in the transient. Version 0.1.0 also contains a standalone laboratory-result filename parser and exact-menu-period matcher; laboratory-result filesystem, WordPress, validation, administration, and public-display layers remain planned. Deactivation does not delete documents. This version is not presented as a stable release.
 
 The catalog keeps only scanner-approved documents that pass limited PDF candidate validation and combines scanner and validation issues. These checks do not provide malware scanning, PDF sanitization, full PDF structure validation, or a guarantee of document safety.
 
@@ -36,6 +36,10 @@ No. Separating current/upcoming and archived links is presentation behavior only
 
 No. The v1.0 design plans only a configurable external survey link and does not plan to store survey responses or patient data.
 
+= Does the laboratory-result foundation interpret test content? =
+
+No. It parses technical filename metadata and matches the two encoded menu-period dates exactly. It does not open or interpret laboratory content, assess a result, or confirm compliance with norms or legal requirements. The `badania/` directory, scanner, PDF candidate pipeline, WordPress integration, latest-result policy, and public shortcode remain planned.
+
 = Does the plugin guarantee that an external survey is anonymous? =
 
 No. The privacy properties of an external form are outside the plugin's control and must be assessed by the site administrator.
@@ -49,6 +53,8 @@ No. The privacy properties of an external form are outside the plugin's control 
 * Added a standalone PDF candidate validator, validation result, optional MIME checks, bounded header and EOF checks, and unit tests.
 * Added a standalone validated menu catalog builder with filtered period groups and combined deterministic issues.
 * Added a standalone menu period classifier for current, upcoming, and archived groups with unit tests.
+* Added a standalone laboratory-result filename parser, immutable document and parse-result models, and unit tests for the `YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_name.pdf` contract.
+* Added deterministic exact-period matching with immutable matched and unmatched laboratory-result associations.
 * Added WordPress uploads path resolution, activation-time menu directory creation, and a catalog provider.
 * Added a WordPress Transients API cache and menu catalog service with programmatic refresh and clear operations.
 * Added a technical “Status publikacji” administration page with WordPress-site-date period counters, a current-menu notice, and protected manual catalog refresh.

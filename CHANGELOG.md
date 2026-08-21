@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Standalone laboratory-result filename parser with immutable document and machine-readable parse-result models for the `YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_name.pdf` contract.
+- Deterministic exact-period matcher producing immutable matched or unmatched associations between laboratory-result documents and existing menu-period groups.
 - Public parameter-free `[zfdz_jadlospisy_archiwum]` shortcode rendering grouped archived menu periods from newest to oldest through the existing validated catalog pipeline.
 - Public parameter-free `[zfdz_jadlospisy]` shortcode rendering grouped current and upcoming validated menu documents without exposing catalog issues or filesystem paths.
 - WordPress uploads `baseurl` resolution for encoded public menu document links and localized period labels.

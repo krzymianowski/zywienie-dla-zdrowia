@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, a Etap 10 — osobny publiczny shortcode archiwalnych okresów. Konfiguracja przez Options API, administracja pozostałych modułów i ich shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, a Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych. Konfiguracja przez Options API, filesystem/WordPress pipeline badań, administracja pozostałych modułów i ich shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -185,6 +185,24 @@ Istniejący `[zfdz_jadlospisy]` zachowuje dotychczasowe zachowanie i nadal pokaz
 
 Rozdzielenie okresów między dwa publiczne widoki jest wyłącznie sposobem prezentacji, a nie kontrolą dostępu. PDF znajdujący się w publicznym WordPress uploads może pozostać dostępny przez znany bezpośredni URL niezależnie od tego, czy aktualnie linkuje go którykolwiek shortcode. Implementacja nie dodaje private storage, proxy pobierania ani reguł serwera WWW.
 
+## Zaimplementowany zakres Etapu 11
+
+Etap 11 dodaje całkowicie standalone fundament modułu wyników badań laboratoryjnych:
+
+- niezmienny `ZFDZ_Lab_Result_Document` przechowujący wyłącznie oryginalny filename, dwie daty okresu jadłospisu, datę wyniku i nazwę;
+- niezmienny `ZFDZ_Lab_Result_Filename_Parse_Result`, który wymusza spójne stany valid lub error;
+- `ZFDZ_Lab_Result_Filename_Parser` dla kontraktu `YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`;
+- niezmienny `ZFDZ_Lab_Result_Menu_Association` reprezentujący zarówno exact match, jak i prawidłowy stan unmatched;
+- deterministyczny `ZFDZ_Lab_Result_Menu_Matcher`, który wiąże dokument wyłącznie z grupą o identycznych `menu_start_date` i `menu_end_date`.
+
+Parser odrzuca NUL i separatory ścieżek, rozszerzenia inne niż PDF, błędną strukturę, nieistniejące daty kalendarzowe, odwrócony zakres jadłospisu oraz nieprawidłowe nazwy. Data wyniku jest walidowana kalendarzowo, ale nie musi znajdować się wewnątrz okresu jadłospisu. Stabilne kody błędów to `invalid_path`, `unsupported_extension`, `invalid_format`, `invalid_menu_start_date`, `invalid_menu_end_date`, `invalid_result_date`, `invalid_menu_date_range` i `invalid_name`.
+
+Matcher nie używa daty wyniku do ustalania grupy, nie stosuje fuzzy matching, nakładania zakresów, najbliższej daty, nazw, locale ani metadata filesystemu. Wiele wyników może wskazywać tę samą grupę. Brak dokładnej grupy tworzy association unmatched i nie jest wyjątkiem ani błędem parsera. Powtórzenie tego samego okresu w wejściowych grupach jest naruszeniem kontraktu programistycznego. Associations są sortowane według `result_date` malejąco, następnie `menu_start_date` malejąco, `menu_end_date` malejąco i oryginalnego filename rosnąco przez binarny `strcmp()`.
+
+Nowe klasy nie korzystają z filesystemu, WordPress API, zegara, `filemtime`, requestów ani zawartości dokumentów. Modele nie przechowują ścieżek, URL-i, MIME, treści ani WordPress IDs. Etap 11 nie tworzy katalogu `badania/` i nie dodaje scannera, walidacji PDF candidate w pipeline badań, WordPress storage, cache, panelu, polityki wyboru najnowszego wyniku, publicznego shortcode ani linków frontendu.
+
+Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
+
 ## Cel
 
 Żywienie dla Zdrowia będzie wtyczką WordPress wspierającą prowadzenie publicznej sekcji:
@@ -280,23 +298,37 @@ Walidacja nazwy ma uwzględniać co najmniej następujące przypadki błędne:
 - brak wymaganej części nazwy;
 - niedozwolone rozszerzenie.
 
-### Planowana konwencja nazw badań
+### Zaimplementowana konwencja nazw badań
 
 ```text
-YYYY-MM-DD_nazwa.pdf
+YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf
 ```
 
-Data będzie metadanym wyprowadzanym z nazwy pliku zgodnie z regułami przyszłego komponentu.
+Kolejne pola oznaczają `menu_start_date`, `menu_end_date`, `result_date` oraz niepustą nazwę. Pierwsze dwie daty wskazują dokładny okres jadłospisu, z którym dokument ma zostać technicznie powiązany. `result_date` jest niezależną datą wyniku i może przypadać przed, wewnątrz lub po okresie jadłospisu.
 
-Plugin ma docelowo:
+Zaimplementowane parser i matcher:
 
-- identyfikować najnowszy wynik na podstawie daty zapisanej w nazwie;
-- umożliwiać administratorowi przypisanie wyniku do odpowiedniego jadłospisu lub pozycji jadłospisu;
-- prezentować publicznie wynik wraz z informacją, którego jadłospisu dotyczy;
-- ostrzegać administratora, jeżeli najnowszy wynik nie został prawidłowo powiązany;
-- nie interpretować treści PDF ani nie oceniać wyniku badania.
+- walidują wszystkie trzy daty jako rzeczywiste daty kalendarzowe i wymagają `menu_start_date <= menu_end_date`;
+- odrzucają ścieżki, rozszerzenia inne niż `.pdf`, błędny UTF-8, znaki kontrolne, puste nazwy oraz whitespace na ich granicach;
+- dopasowują dokument wyłącznie przez dokładną zgodność obu dat okresu z `ZFDZ_Menu_Period_Group`;
+- reprezentują brak odpowiadającej grupy jako unmatched bez odrzucenia prawidłowo nazwanej pozycji;
+- pozwalają na wiele wyników dla jednego okresu i deterministycznie sortują je przede wszystkim według `result_date` malejąco;
+- nie używają WordPress API, filesystemu, `filemtime`, locale ani bieżącego czasu.
 
-Nazwy plików zawsze będą traktowane jako niezaufane dane wejściowe. Szczegółowe reguły parsera i scannera wyników badań zostaną określone przed implementacją tego modułu.
+Nadal planowane są:
+
+- katalog `badania/` i jego tworzenie podczas aktywacji;
+- scanner katalogu oraz ograniczona walidacja kandydatów PDF w pipeline badań;
+- WordPress storage, cache i panel administratora dla badań;
+- identyfikacja najnowszego wyniku na podstawie daty zapisanej w nazwie;
+- polityka wyboru najnowszego wyniku spośród wielu prawidłowych dokumentów;
+- publiczna prezentacja wyniku wraz z informacją, którego jadłospisu dotyczy;
+- ostrzeganie administratora, jeżeli najnowszy wynik nie został prawidłowo powiązany;
+- publiczny i zbiorczy shortcode oraz linkowanie w frontendzie.
+
+Nazwy plików są traktowane jako niezaufane dane wejściowe. Etap 11 nie otwiera dokumentów, nie interpretuje treści PDF i nie ocenia wyniku badania medycznie ani normatywnie.
+
+Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
 
 ### Materiały edukacyjne
 

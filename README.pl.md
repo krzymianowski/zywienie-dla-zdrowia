@@ -4,7 +4,7 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline i classifier okresów jadłospisów, integracja z WordPress uploads, serwis katalogu oparty na transientach, techniczna strona administracyjna oraz publiczne shortcode’y jadłospisów aktualnych/nadchodzących i archiwum są zaimplementowane. Pozostałe moduły nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline i classifier okresów jadłospisów, integracja z WordPress uploads, serwis katalogu oparty na transientach, techniczna strona administracyjna, publiczne shortcode’y jadłospisów oraz standalone fundament nazw i powiązań wyników badań są zaimplementowane. Integracja wyników badań z WordPressem i ich publiczna prezentacja nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
@@ -16,6 +16,8 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Niezależny validator kandydatów PDF sprawdzający symlink, zwykły i czytelny plik, opcjonalne MIME, nagłówek oraz marker EOF w ograniczonym fragmencie końca.
 - Niezależny builder zwalidowanego katalogu jadłospisów, który zachowuje tylko dokumenty zaakceptowane przez scanner i ograniczony validator PDF, filtruje grupy okresów oraz łączy deterministycznie uporządkowane issues.
 - Niezależny i deterministyczny classifier dzielący zwalidowane grupy okresów na aktualne, nadchodzące i archiwalne względem jawnie przekazanej daty kalendarzowej.
+- Niezależny parser nazw wyników badań zgodnych z `YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`, niezmienny model dokumentu i wyniku parsowania oraz maszynowo czytelne błędy walidacji.
+- Deterministyczny standalone matcher wiążący wynik badania z grupą jadłospisu wyłącznie przy dokładnej zgodności obu dat okresu i reprezentujący brak grupy jako prawidłowy wynik unmatched.
 - Wyznaczanie ścieżki przez WordPress uploads API, tworzenie `zywienie-dla-zdrowia/jadlospisy/` podczas aktywacji oraz provider łączący ten katalog ze standalone pipeline.
 - Cache WordPress Transients API o czasie życia około pięciu minut oraz serwis katalogu udostępniający odczyt z cache i programowe operacje refresh/clear.
 - Natywną stronę administracyjną WordPress „Status publikacji” ze statusem technicznym katalogu, licznikami okresów aktualnych/nadchodzących/archiwalnych względem daty witryny WordPress, bezpiecznymi opisami problemów i ręcznym odświeżaniem chronionym capability oraz nonce w przepływie POST/Redirect/GET.
@@ -29,7 +31,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 ### Planowane dla v1.0 (Planned for v1.0)
 
 - Jadłospisy.
-- Wyniki badań laboratoryjnych.
+- Katalog `badania/`, scanner i pipeline walidacji kandydatów PDF badań, WordPress storage/cache/panel, polityka wyboru najnowszego wyniku, publiczny shortcode i linki frontendu.
 - Materiały edukacyjne.
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
 - Dodatkowe zabezpieczenia serwerowe, antywirusowe lub sanitizacja dokumentów wymagane przez konkretne wdrożenie.
@@ -121,6 +123,14 @@ Rozdzielenie archiwalnych dokumentów do osobnego shortcode jest wyłącznie spo
 
 Oba shortcode’y korzystają z `get_catalog()` i nigdy nie wymuszają refresh. Pliki dostarczone poza WordPressem stają się widoczne po wygaśnięciu około pięciominutowego cache lub po chronionym ręcznym odświeżeniu przez administratora. Klasyfikacja wykorzystuje świeżą datę witryny WordPress podczas każdego renderowania i nie jest cache’owana.
 
+## Standalone fundament wyników badań
+
+Etap 11 definiuje kontrakt filename `YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`. Pierwsze dwie daty identyfikują dokładny okres jadłospisu, trzecia jest datą wyniku badania, a pozostała niepusta część stanowi nazwę. Data wyniku musi być rzeczywistą datą kalendarzową, ale może przypadać przed okresem jadłospisu, w jego trakcie albo po nim.
+
+Standalone parser odrzuca wejścia ścieżkowe, rozszerzenia inne niż PDF, błędne lub niemożliwe daty, odwrócony zakres jadłospisu, nieprawidłowy UTF-8, znaki kontrolne i nieprawidłowe nazwy. Zwraca niezmienny dokument albo jeden stabilny, maszynowo czytelny błąd. Matcher porównuje wyłącznie `menu_start_date` i `menu_end_date` z datami istniejącej `ZFDZ_Menu_Period_Group`. Brak dokładnego okresu tworzy association unmatched, a nie błąd parsera ani wyjątek. Associations są deterministycznie uporządkowane według daty wyniku malejąco, dat okresu malejąco i oryginalnego filename rosnąco przez binarny `strcmp()`.
+
+Katalog `badania/`, scanner, pipeline walidacji zawartości PDF, WordPress storage, cache, panel, polityka wyboru najnowszego wyniku, shortcode i publiczne linki nie są jeszcze zaimplementowane. Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
+
 ## Development
 
 Minimalne wspierane środowisko to WordPress 6.8 oraz PHP 8.2. Zalecane jest PHP 8.3 lub nowsze. Narzędzia developerskie wymagają Composer 2. Instalacja zależności developerskich i uruchomienie kontroli:
@@ -132,7 +142,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu oraz classifier okresów aktualne/nadchodzące/archiwalne. WordPress-specific lifecycle storage, warstwa cache transientów, strona administracyjna i publiczne shortcode’y są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Zbiorczy shortcode, frontend pozostałych modułów, rozbudowana administracja i konfiguracja nadal są planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu, classifier okresów aktualne/nadchodzące/archiwalne, parser nazw wyników badań oraz matcher dokładnego okresu. WordPress-specific lifecycle storage, warstwa cache transientów, strona administracyjna i publiczne shortcode’y są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Zbiorczy shortcode, frontend pozostałych modułów, rozbudowana administracja i konfiguracja nadal są planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 
