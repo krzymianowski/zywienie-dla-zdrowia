@@ -2,13 +2,32 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. W Etapie 1 zaimplementowano wyłącznie niezależny parser nazw jadłospisów, model dokumentu i jednoznaczny wynik parsowania. Opisane niżej skanowanie źródła dokumentów, moduły publiczne, konfiguracja, cache i shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, a Etap 2 — niezależny scanner katalogu wraz z sortowaniem, grupowaniem i raportowaniem problematycznych wpisów. Integracja z katalogiem uploads WordPressa, walidacja MIME i zawartości PDF, moduły publiczne, konfiguracja, cache i shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
 Parser rozpoznaje wyłącznie nazwy zgodne z konwencją `YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`. Dla prawidłowej nazwy zwraca model zawierający oryginalny filename, datę początku, datę końca i niezmienioną nazwę dokumentu. Dla błędnej nazwy zwraca maszynowo czytelny kod błędu.
 
 Zaimplementowana walidacja obejmuje separatory ścieżek i NUL, rozszerzenie PDF, strukturę nazwy, rzeczywiste daty kalendarzowe, kolejność dat oraz niepustą nazwę Unicode. Parser nie otwiera plików, nie sprawdza MIME, nie korzysta z filesystemu ani WordPress API i nie renderuje treści.
+
+## Zaimplementowany zakres Etapu 2
+
+Standalone scanner filesystemu przyjmuje absolutną ścieżkę katalogu jadłospisów pochodzącą z zaufanej konfiguracji aplikacji. Ścieżka nie jest wartością pobieraną bezpośrednio z requestu HTTP; scanner nie próbuje usuwać z niej separatorów ani interpretować jej jako nazwy pliku.
+
+Scanner:
+
+- sprawdza wyłącznie bezpośrednią zawartość wskazanego katalogu i nie skanuje podkatalogów;
+- nie korzysta z opcji `FOLLOW_SYMLINKS`, sprawdza symlink przed zwykłym plikiem i raportuje go jako `unsafe_symlink`;
+- przekazuje nazwy wszystkich zwykłych plików do parsera Etapu 1, bez wcześniejszego filtrowania po rozszerzeniu;
+- zwraca rozpoznane kandydaty na dokumenty oraz oddzielne issues zawierające wyłącznie nazwę wpisu i maszynowo czytelny kod błędu;
+- zgłasza podkatalogi i inne nietypowe wpisy jako `unsupported_entry_type`, bez skanowania ich zawartości;
+- sortuje dokumenty malejąco według dat z nazw, z binarnym `strcmp()` dla deterministycznego tie-breakera, i nie używa `filemtime` ani locale systemowego;
+- grupuje dokumenty o dokładnie tej samej dacie początku i końca oraz deterministycznie sortuje grupy i issues;
+- nie pozwala, aby nierozpoznany plik blokował zwrócenie poprawnych dokumentów;
+- reprezentuje brak katalogu, błędny typ ścieżki, brak odczytu lub błąd skanowania przez kody katalogowe i puste kolekcje wyniku;
+- nie zapisuje absolutnej ścieżki źródłowej ani targetu symlinka w modelach wyniku.
+
+Scanner nie otwiera dokumentów, nie odczytuje ich zawartości, nie analizuje MIME ani magic bytes i nie potwierdza, że kandydat z rozszerzeniem `.pdf` jest rzeczywistym dokumentem PDF. Taka walidacja pozostaje wymagana przed przyszłym publicznym udostępnianiem plików. Scanner nie korzysta z WordPress API, nie tworzy katalogów i nie modyfikuje ani nie usuwa wpisów.
 
 ## Cel
 
@@ -65,7 +84,7 @@ badania/
 materialy/
 ```
 
-Katalogi nie powstają na Etapie 0. Zostaną utworzone dopiero wraz z rzeczywistą funkcją, która będzie ich potrzebować.
+Standalone scanner Etapu 2 nie tworzy tych katalogów i nie jest jeszcze połączony z katalogiem uploads WordPressa. Integracja oraz zarządzanie wymaganymi katalogami pozostają planowane.
 
 ### Planowana konwencja nazw jadłospisów
 
@@ -75,16 +94,20 @@ YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf
 
 Dwie daty oznaczają planowany początek i koniec okresu obowiązywania dokumentu.
 
-Plugin ma docelowo:
+Zaimplementowane parser i scanner Etapów 1–2:
 
-- odczytywać datę początku i końca z nazwy pliku;
-- grupować dokumenty dotyczące tego samego okresu;
-- pozwalać na wiele diet lub dokumentów dla tego samego okresu;
-- sortować dokumenty według dat wynikających z nazwy, a nie według `filemtime`;
-- rozpoznawać okres jako aktualny, nadchodzący lub archiwalny;
-- nie usuwać automatycznie dokumentów;
-- bezpiecznie pomijać nierozpoznane nazwy na publicznym frontendzie;
-- informować administratora o nierozpoznanych dokumentach zamiast powodować błąd frontendu.
+- odczytują datę początku i końca z nazwy pliku;
+- grupują dokumenty dotyczące tego samego okresu;
+- pozwalają na wiele diet lub dokumentów dla tego samego okresu;
+- sortują dokumenty według dat wynikających z nazwy, a nie według `filemtime`;
+- oddzielają poprawne dokumenty od nierozpoznanych wpisów bez przerywania całego skanowania.
+
+Nadal planowane są:
+
+- klasyfikacja okresu jako aktualnego, nadchodzącego lub archiwalnego z użyciem czasu WordPressa;
+- integracja zapewniająca, że dokumenty nie są automatycznie usuwane;
+- bezpieczne pomijanie nierozpoznanych nazw na publicznym frontendzie;
+- informowanie administratora o nierozpoznanych dokumentach bez powodowania błędu frontendu.
 
 Walidacja nazwy ma uwzględniać co najmniej następujące przypadki błędne:
 
@@ -109,7 +132,7 @@ Plugin ma docelowo:
 - ostrzegać administratora, jeżeli najnowszy wynik nie został prawidłowo powiązany;
 - nie interpretować treści PDF ani nie oceniać wyniku badania.
 
-Nazwy plików zawsze będą traktowane jako niezaufane dane wejściowe. Szczegółowe reguły walidacji, sortowania, obsługiwanych rozszerzeń i zachowania przy błędnych nazwach zostaną określone przed implementacją skanowania.
+Nazwy plików zawsze będą traktowane jako niezaufane dane wejściowe. Szczegółowe reguły parsera i scannera wyników badań zostaną określone przed implementacją tego modułu.
 
 ### Materiały edukacyjne
 
@@ -189,7 +212,7 @@ Planowane shortcode’y:
 [zfdz_ankieta]
 ```
 
-Wszystkie powyższe shortcode’y są **planowane dla v1.0 i nie są zaimplementowane na Etapie 0**. Ich dokładne atrybuty, zachowanie, semantyka HTML oraz komunikaty błędów zostaną określone przed implementacją.
+Wszystkie powyższe shortcode’y są **planowane dla v1.0 i nie są zaimplementowane w obecnej wersji developerskiej**. Ich dokładne atrybuty, zachowanie, semantyka HTML oraz komunikaty błędów zostaną określone przed implementacją.
 
 ## Bezpieczeństwo
 
@@ -256,7 +279,7 @@ Poza elementami architektonicznymi wymienionymi wcześniej, v1.0 nie obejmuje me
 
 ## Kryteria ukończenia przyszłego v1.0.0
 
-Poniższe kryteria dotyczą przyszłego wydania `1.0.0`, a nie obecnego Etapu 0. Przed uznaniem v1.0 za ukończoną wymagane będą co najmniej:
+Poniższe kryteria dotyczą przyszłego wydania `1.0.0`, a nie obecnej wersji developerskiej. Przed uznaniem v1.0 za ukończoną wymagane będą co najmniej:
 
 - instalacja pluginu z pliku ZIP na czystym WordPressie bez błędów;
 - poprawna obsługa planowanych katalogów dokumentów;

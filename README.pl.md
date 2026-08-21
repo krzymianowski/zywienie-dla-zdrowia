@@ -4,7 +4,7 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Funkcjonalności biznesowe opisane niżej jako planowane nie są jeszcze zaimplementowane.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Niezależny parser nazw i scanner katalogu są zaimplementowane, ale integracja z WordPressem oraz wszystkie funkcje użytkowe pozostają planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
@@ -12,7 +12,8 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 
 - Pasywny plik startowy wtyczki z poprawnym nagłówkiem i ochroną przed bezpośrednim uruchomieniem.
 - Niezależny parser nazw jadłospisów zgodnych z konwencją `YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`, niezmienny model dokumentu i maszynowo czytelne błędy parsowania.
-- Testy PHPUnit struktury nazw, dat kalendarzowych, zakresów dat, rozszerzeń, niebezpiecznych danych ścieżek, nazw Unicode i przypadków granicznych bez uruchamiania WordPressa.
+- Niezależny, nierekurencyjny scanner katalogu jadłospisów, który odrzuca symlinki, raportuje nierozpoznane wpisy, sortuje dokumenty według dat z nazw i deterministycznie grupuje identyczne okresy.
+- Testy PHPUnit parsera nazw i scannera filesystemu bez uruchamiania WordPressa.
 - Narzędzia developerskie Composer: PHP_CodeSniffer i WordPress Coding Standards.
 - Początkową dokumentację projektu, bezpieczeństwa, współpracy i specyfikacji produktu.
 - Workflow CI sprawdzający konfigurację Composer, składnię PHP, PHPCS i PHPUnit.
@@ -23,7 +24,8 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Wyniki badań laboratoryjnych.
 - Materiały edukacyjne.
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
-- Dokumenty oparte na filesystemie w `wp-content/uploads/zywienie-dla-zdrowia/`.
+- Integracja WordPress z dokumentami w filesystemie pod `wp-content/uploads/zywienie-dla-zdrowia/`.
+- Walidacja MIME i rzeczywistej zawartości PDF przed publicznym udostępnieniem dokumentu.
 - Konfiguracja przez WordPress Options API i cache przez Transients API.
 - Shortcode’y wymienione w [roboczej specyfikacji v1.0](docs/specification-v1.0.md).
 
@@ -47,7 +49,7 @@ Planowany zakres wspiera publikację stosowanych jadłospisów, ostatniego wynik
 
 ## Bezpieczeństwo i prywatność
 
-Planowane funkcje będą walidować i sanityzować dane wejściowe, wykonywać escaping danych wyjściowych możliwie późno, sprawdzać uprawnienia WordPress i nonce oraz chronić operacje na plikach przed path traversal i niezaufanymi nazwami plików. Zawartość katalogu uploads nie będzie dołączana ani wykonywana jako PHP.
+Zaimplementowany scanner przyjmuje zaufaną ścieżkę katalogu z konfiguracji aplikacji, sprawdza wyłącznie bezpośrednie wpisy, odrzuca symlinki oraz nigdy nie czyta ani nie wykonuje zawartości dokumentów. Przyszłe funkcje WordPress będą walidować i sanityzować dane wejściowe, wykonywać escaping możliwie późno oraz sprawdzać uprawnienia i nonce. Zawartość katalogu uploads nie będzie dołączana ani wykonywana jako PHP.
 
 Projekt v1.0 zakłada, że sama wtyczka nie będzie przechowywać danych pacjentów ani odpowiedzi ankiet, instalować cookies, wysyłać telemetrii ani przekazywać danych do usług zewnętrznych. Moduł ankiety będzie jedynie odnośnikiem skonfigurowanym przez administratora; wtyczka nie będzie deklarować, że zewnętrzny formularz jest anonimowy.
 
@@ -66,7 +68,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują wyłącznie niezależny parser nazw jadłospisów dodany w Etapie 1; skanowanie katalogów i funkcje interfejsu pozostają planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw oraz scanner katalogu jadłospisów. Integracja z katalogiem uploads WordPressa, walidacja MIME, cache, administracja, shortcode’y i frontend pozostają planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 

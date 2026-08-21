@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Standalone, non-recursive menu directory scanner with deterministic sorting and exact-period grouping.
+- Immutable scan result, scan issue, and menu period group models with machine-readable directory and entry errors.
+- Filesystem test coverage for directory failures, mixed entries, non-recursive scanning, symlink rejection, sorting, grouping, and path disclosure boundaries.
 - Standalone menu filename parser with calendar-date, range, extension, name, and unsafe-path validation.
 - Immutable menu document model and machine-readable parse result.
 - PHPUnit 11 unit-test infrastructure and parser test coverage without WordPress.
