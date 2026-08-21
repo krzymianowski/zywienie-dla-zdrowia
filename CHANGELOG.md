@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- WordPress Transients API cache for successful menu catalogs with a fixed versioned key and an approximately five-minute lifetime.
+- WordPress menu catalog service with cache-hit reads and explicit programmatic refresh and clear operations.
 - WordPress uploads-based menu storage with activation-time, idempotent directory creation and non-destructive retention behavior.
 - WordPress menu catalog provider connecting the managed `jadlospisy` directory to the standalone validated catalog pipeline.
 - Standalone validated menu catalog builder that orchestrates scanning and limited PDF candidate validation without coupling the underlying components.

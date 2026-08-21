@@ -28,6 +28,8 @@ require_once __DIR__ . '/includes/class-zfdz-menu-catalog-result.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-catalog-builder.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-storage.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-catalog-provider.php';
+require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-catalog-cache.php';
+require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-catalog-service.php';
 
 register_activation_hook(
 	__FILE__,

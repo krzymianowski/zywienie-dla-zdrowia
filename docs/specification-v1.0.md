@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, a Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`. Moduły publiczne, administracja, konfiguracja, cache i shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, a Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania. Moduły publiczne, administracja, konfiguracja przez Options API i shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -83,6 +83,28 @@ Activation hook wywołuje `ensure_menu_directory()`. Błąd przerywa aktywację 
 
 Samo załadowanie pluginu rejestruje activation hook i ładuje klasy, ale nie tworzy katalogu, nie skanuje filesystemu i nie waliduje PDF. Publiczne URL-e, panel, shortcode’y, frontend i cache nie są częścią Etapu 5.
 
+## Zaimplementowany zakres Etapu 6
+
+Cache katalogu jest oddzielną, WordPress-specific warstwą korzystającą z Transients API. Standalone komponenty Etapów 1–4 pozostają niezależne od WordPress API, a provider Etapu 5 nadal jest źródłem świeżego katalogu.
+
+`ZFDZ_WordPress_Menu_Catalog_Cache`:
+
+- korzysta ze stałego, wersjonowanego i niezależnego od requestu klucza `zfdz_menu_catalog_v1`;
+- przechowuje bez ręcznej serializacji wyłącznie poprawny `ZFDZ_Menu_Catalog_Result`, również gdy zawiera entry-level issues;
+- używa domyślnego TTL około pięciu minut;
+- nie cache’uje directory-level failures ani obiektów `WP_Error`;
+- traktuje nieoczekiwany typ transientu jako uszkodzony lub nieaktualny cache, usuwa go i zwraca cache miss;
+- traktuje zapis i usunięcie transientu jako operacje best-effort, które nie blokują zwrócenia świeżego katalogu.
+
+`ZFDZ_WordPress_Menu_Catalog_Service`:
+
+- dla `get_catalog()` zwraca poprawny cache hit, a po cache miss pobiera wynik z istniejącego providera i zapisuje go tylko wtedy, gdy jest successful;
+- dla `refresh_catalog()` najpierw usuwa poprzedni cache, następnie wymusza świeży odczyt providera i cache’uje wyłącznie successful result;
+- dla `clear_cache()` tylko usuwa transient, bez skanowania filesystemu, tworzenia katalogów lub modyfikowania dokumentów;
+- udostępnia `create_default()` korzystające z zaakceptowanej fabryki providera bez ponownego składania standalone pipeline.
+
+Transient przechowuje wyłącznie istniejący publiczny model katalogu bez ścieżek filesystemu, credentials lub danych pochodzących z requestu. Samo załadowanie pluginu i utworzenie serwisu nie odczytuje ani nie zapisuje transientu, nie skanuje katalogu i nie waliduje PDF. Operacje rozpoczynają się dopiero po jawnym wywołaniu metody serwisu. Etap 6 nie dodaje panelu ani przycisku ręcznego odświeżania.
+
 ## Cel
 
 Żywienie dla Zdrowia będzie wtyczką WordPress wspierającą prowadzenie publicznej sekcji:
@@ -140,6 +162,8 @@ materialy/
 ```
 
 Standalone scanner Etapu 2 i pipeline katalogu Etapu 4 nadal nie znają WordPress API. Storage Etapu 5 zarządza lokalizacją i lifecycle katalogu, a provider przekazuje ustaloną ścieżkę do standalone buildera dopiero na żądanie.
+
+WordPress-specific serwis Etapu 6 korzysta z providera i cache transientów. Nie zmienia publicznego modelu katalogu ani kontraktów standalone pipeline.
 
 ### Planowana konwencja nazw jadłospisów
 
@@ -210,6 +234,7 @@ Nazwy plików zawsze będą traktowane jako niezaufane dane wejściowe. Szczegó
 - SFTP jest jednym z przewidywanych zewnętrznych sposobów dostarczania plików bezpośrednio do `<WordPress uploads basedir>/zywienie-dla-zdrowia/jadlospisy/`.
 - Administrator serwera odpowiada za konfigurację osobnego konta SFTP z dostępem ograniczonym wyłącznie do katalogu dokumentów. Credentials i konfiguracja rzeczywistego wdrożenia nie mogą trafić do publicznego repozytorium.
 - Plugin powinien działać identycznie niezależnie od tego, czy plik został dostarczony przez SFTP, czy inną bezpieczną metodę poza WordPressem.
+- Plik dostarczony poza WordPressem pojawi się w katalogu najpóźniej po wygaśnięciu około pięciominutowego cache albo wcześniej po jawnym programowym wywołaniu `refresh_catalog()`.
 
 ## Planowany panel administracyjny
 
@@ -234,7 +259,7 @@ Status ma przedstawiać wyłącznie informacje techniczne i nie jest oceną zgod
 
 - Filesystem jako źródło dokumentów.
 - WordPress Options API do konfiguracji.
-- Transients API do cache.
+- Zaimplementowany cache katalogu jadłospisów przez WordPress Transients API.
 - Brak własnych tabel bazy danych w v1.0.
 - Brak Custom Post Types w v1.0.
 - Brak REST API w v1.0.
@@ -246,12 +271,13 @@ Status ma przedstawiać wyłącznie informacje techniczne i nie jest oceną zgod
 
 Architektura ma pozostać możliwie prosta. Nowe warstwy i abstrakcje powinny powstawać wyłącznie wtedy, gdy rozwiążą konkretną potrzebę zaimplementowanego kodu.
 
-## Planowany cache
+## Cache katalogu jadłospisów
 
-- Cache będzie korzystać z Transients API.
-- Lista dokumentów będzie przechowywana w krótkim cache, domyślnie przez około 5 minut.
-- Administrator będzie mieć możliwość ręcznego odświeżenia listy dokumentów.
-- Podstawowa implementacja nie będzie wymagać filesystem watcherów, daemonów ani własnej kolejki.
+- Zaimplementowany cache korzysta z WordPress Transients API i stałego klucza `zfdz_menu_catalog_v1`.
+- Successful `ZFDZ_Menu_Catalog_Result` jest przechowywany domyślnie przez około 5 minut; directory failures nie są cache’owane.
+- `refresh_catalog()` programowo wymusza świeży odczyt, a `clear_cache()` wyłącznie usuwa transient.
+- Przyszły panel administratora ma udostępnić kontrolkę ręcznego odświeżania; Etap 6 nie implementuje tego UI.
+- Podstawowa implementacja nie wymaga filesystem watcherów, daemonów, cronów ani własnej kolejki.
 
 ## Planowana integracja ze stroną WordPress
 

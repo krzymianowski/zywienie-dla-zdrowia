@@ -12,7 +12,7 @@ Development-stage tooling for publishing information related to a “Żywienie d
 
 The minimum supported environment is WordPress 6.8 and PHP 8.2. PHP 8.3 or later is recommended.
 
-Version 0.1.0 contains a standalone validated menu catalog pipeline and its first WordPress integration. During activation, the plugin resolves the current uploads base directory through WordPress API and idempotently creates `zywienie-dla-zdrowia/jadlospisy/`. A WordPress catalog provider connects that directory to the standalone pipeline only when explicitly requested. Deactivation does not delete documents. Administration and user-facing features are not implemented, and this version is not presented as a stable release.
+Version 0.1.0 contains a standalone validated menu catalog pipeline and its first WordPress integration. During activation, the plugin resolves the current uploads base directory through WordPress API and idempotently creates `zywienie-dla-zdrowia/jadlospisy/`. A WordPress catalog provider connects that directory to the standalone pipeline only when explicitly requested. A catalog service caches successful results for approximately five minutes and supports programmatic refresh and clear operations. Deactivation does not delete documents. Administration and user-facing features, including a manual-refresh control, are not implemented, and this version is not presented as a stable release.
 
 The catalog keeps only scanner-approved documents that pass limited PDF candidate validation and combines scanner and validation issues. These checks do not provide malware scanning, PDF sanitization, full PDF structure validation, or a guarantee of document safety.
 
@@ -45,4 +45,5 @@ No. The privacy properties of an external form are outside the plugin's control 
 * Added a standalone PDF candidate validator, validation result, optional MIME checks, bounded header and EOF checks, and unit tests.
 * Added a standalone validated menu catalog builder with filtered period groups and combined deterministic issues.
 * Added WordPress uploads path resolution, activation-time menu directory creation, and a catalog provider.
+* Added a WordPress Transients API cache and menu catalog service with programmatic refresh and clear operations.
 * Added the initial plugin bootstrap, project documentation, and development quality tooling.

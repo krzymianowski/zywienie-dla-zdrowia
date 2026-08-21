@@ -4,7 +4,7 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów i jego pierwsza integracja z WordPress uploads są zaimplementowane, ale administracja oraz wszystkie funkcje użytkowe pozostają planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów, integracja z WordPress uploads i serwis katalogu oparty na transientach są zaimplementowane, ale administracja oraz wszystkie funkcje użytkowe pozostają planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
@@ -16,6 +16,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Niezależny validator kandydatów PDF sprawdzający symlink, zwykły i czytelny plik, opcjonalne MIME, nagłówek oraz marker EOF w ograniczonym fragmencie końca.
 - Niezależny builder zwalidowanego katalogu jadłospisów, który zachowuje tylko dokumenty zaakceptowane przez scanner i ograniczony validator PDF, filtruje grupy okresów oraz łączy deterministycznie uporządkowane issues.
 - Wyznaczanie ścieżki przez WordPress uploads API, tworzenie `zywienie-dla-zdrowia/jadlospisy/` podczas aktywacji oraz provider łączący ten katalog ze standalone pipeline.
+- Cache WordPress Transients API o czasie życia około pięciu minut oraz serwis katalogu udostępniający odczyt z cache i programowe operacje refresh/clear.
 - Testy PHPUnit parsera nazw, scannera filesystemu, validatora kandydatów PDF i pipeline katalogu bez uruchamiania WordPressa.
 - Narzędzia developerskie Composer: PHP_CodeSniffer i WordPress Coding Standards.
 - Początkową dokumentację projektu, bezpieczeństwa, współpracy i specyfikacji produktu.
@@ -28,7 +29,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Materiały edukacyjne.
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
 - Dodatkowe zabezpieczenia serwerowe, antywirusowe lub sanitizacja dokumentów wymagane przez konkretne wdrożenie.
-- Konfiguracja przez WordPress Options API i cache przez Transients API.
+- Konfiguracja przez WordPress Options API i kontrolka administracyjna do ręcznego odświeżania katalogu.
 - Panel administratora, Status publikacji, shortcode’y i publiczny frontend.
 - Shortcode’y wymienione w [roboczej specyfikacji v1.0](docs/specification-v1.0.md).
 
@@ -72,7 +73,13 @@ Podczas aktywacji plugin wyznacza bieżący uploads basedir przez `wp_get_upload
 
 Zwykłe ładowanie pluginu nie tworzy katalogów, nie skanuje dokumentów i nie buduje katalogu wynikowego. Dezaktywacja nie usuwa katalogów ani dokumentów, a ten etap nie dodaje cleanup przy uninstall. Provider katalogu WordPress wyznacza ścieżkę dopiero po jawnym wywołaniu `get_catalog()`.
 
-Pliki będzie można dostarczać przez zewnętrznie skonfigurowane, ograniczone konto SFTP. Plugin nie implementuje SFTP, a administrator serwera odpowiada za ograniczenie konta wyłącznie do katalogu dokumentów. Credentials nie mogą być przechowywane w repozytorium.
+## Cache katalogu jadłospisów
+
+Serwis katalogu WordPress zapisuje w cache wyłącznie poprawne obiekty `ZFDZ_Menu_Catalog_Result` na około pięć minut pod stałym, wersjonowanym kluczem transientu `zfdz_menu_catalog_v1`. Poprawny katalog może zawierać entry-level issues. Błędy katalogowe są zwracane bez cache’owania. Nieoczekiwana wartość transientu jest usuwana i traktowana jako cache miss. Programowy refresh usuwa poprzednią wartość przed ponownym zbudowaniem katalogu, a wyczyszczenie cache usuwa wyłącznie transient i nigdy nie skanuje ani nie zmienia filesystemu.
+
+Załadowanie pluginu ani utworzenie serwisu nie wykonuje operacji transientu lub filesystemu. Praca rozpoczyna się dopiero po jawnym pobraniu, odświeżeniu lub wyczyszczeniu katalogu przez konsumenta. Przycisk administracyjny do ręcznego odświeżania nadal jest planowany i nie został zaimplementowany.
+
+Pliki będzie można dostarczać przez zewnętrznie skonfigurowane, ograniczone konto SFTP. Plugin nie implementuje SFTP, a administrator serwera odpowiada za ograniczenie konta wyłącznie do katalogu dokumentów. Credentials nie mogą być przechowywane w repozytorium. Pliki dostarczone poza WordPressem stają się widoczne po wygaśnięciu krótkiego cache lub wcześniej po jawnym programowym odświeżeniu.
 
 ## Development
 
@@ -85,7 +92,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF oraz pipeline zwalidowanego katalogu. WordPress-specific lifecycle storage jest na tym etapie objęty lintem i PHPCS oraz wymaga manualnego smoke testu po review. Cache, administracja, shortcode’y, frontend i klasyfikacja aktualne/nadchodzące/archiwalne pozostają planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF oraz pipeline zwalidowanego katalogu. WordPress-specific lifecycle storage i warstwa cache transientów są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Administracja, UI ręcznego odświeżania, shortcode’y, frontend i klasyfikacja aktualne/nadchodzące/archiwalne pozostają planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 
