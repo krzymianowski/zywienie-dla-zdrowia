@@ -4,7 +4,7 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Niezależny parser nazw, scanner katalogu i ograniczony validator kandydatów PDF są zaimplementowane, ale ich integracja z WordPressem oraz wszystkie funkcje użytkowe pozostają planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Niezależny parser nazw, scanner katalogu, ograniczony validator kandydatów PDF i pipeline zwalidowanego katalogu jadłospisów są zaimplementowane, ale ich integracja z WordPressem oraz wszystkie funkcje użytkowe pozostają planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
@@ -14,7 +14,8 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Niezależny parser nazw jadłospisów zgodnych z konwencją `YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`, niezmienny model dokumentu i maszynowo czytelne błędy parsowania.
 - Niezależny, nierekurencyjny scanner katalogu jadłospisów, który odrzuca symlinki, raportuje nierozpoznane wpisy, sortuje dokumenty według dat z nazw i deterministycznie grupuje identyczne okresy.
 - Niezależny validator kandydatów PDF sprawdzający symlink, zwykły i czytelny plik, opcjonalne MIME, nagłówek oraz marker EOF w ograniczonym fragmencie końca.
-- Testy PHPUnit parsera nazw, scannera filesystemu i validatora kandydatów PDF bez uruchamiania WordPressa.
+- Niezależny builder zwalidowanego katalogu jadłospisów, który zachowuje tylko dokumenty zaakceptowane przez scanner i ograniczony validator PDF, filtruje grupy okresów oraz łączy deterministycznie uporządkowane issues.
+- Testy PHPUnit parsera nazw, scannera filesystemu, validatora kandydatów PDF i pipeline katalogu bez uruchamiania WordPressa.
 - Narzędzia developerskie Composer: PHP_CodeSniffer i WordPress Coding Standards.
 - Początkową dokumentację projektu, bezpieczeństwa, współpracy i specyfikacji produktu.
 - Workflow CI sprawdzający konfigurację Composer, składnię PHP, PHPCS i PHPUnit.
@@ -26,7 +27,6 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Materiały edukacyjne.
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
 - Integracja WordPress z dokumentami w filesystemie pod `wp-content/uploads/zywienie-dla-zdrowia/`.
-- Integracja scannera katalogu z validatorem kandydatów PDF przed publicznym udostępnieniem dokumentu.
 - Dodatkowe zabezpieczenia serwerowe, antywirusowe lub sanitizacja dokumentów wymagane przez konkretne wdrożenie.
 - Konfiguracja przez WordPress Options API i cache przez Transients API.
 - Shortcode’y wymienione w [roboczej specyfikacji v1.0](docs/specification-v1.0.md).
@@ -51,7 +51,7 @@ Planowany zakres wspiera publikację stosowanych jadłospisów, ostatniego wynik
 
 ## Bezpieczeństwo i prywatność
 
-Zaimplementowany scanner przyjmuje zaufaną ścieżkę katalogu z konfiguracji aplikacji, sprawdza wyłącznie bezpośrednie wpisy, odrzuca symlinki oraz nigdy nie czyta ani nie wykonuje zawartości dokumentów. Standalone validator PDF wykonuje ograniczone kontrole zaufanej ścieżki pliku, opcjonalnego MIME, nagłówka `%PDF-X.Y` i markera `%%EOF`. Nie parsuje ani nie sanitizuje całego PDF, nie wykrywa malware, nie gwarantuje bezpieczeństwa dokumentu i nie zastępuje zabezpieczeń serwera, antywirusa ani kontroli administratora. Przyszłe funkcje WordPress będą walidować i sanityzować dane wejściowe, wykonywać escaping możliwie późno oraz sprawdzać uprawnienia i nonce. Zawartość katalogu uploads nie będzie dołączana ani wykonywana jako PHP.
+Zaimplementowany scanner przyjmuje zaufaną ścieżkę katalogu z konfiguracji aplikacji, sprawdza wyłącznie bezpośrednie wpisy, odrzuca symlinki oraz nigdy nie czyta ani nie wykonuje zawartości dokumentów. Builder katalogu waliduje wyłącznie kandydatów filename zaakceptowanych przez scanner i łączy problemy scannera oraz validatora bez ujawniania ścieżek źródłowych. Finalny katalog zawiera kandydatów, którzy przeszli walidację nazwy, typu wpisu i ograniczoną walidację PDF candidate. Nie oznacza to skanowania malware, sanitizacji PDF, pełnej walidacji struktury PDF ani gwarancji bezpieczeństwa dokumentu i nie zastępuje zabezpieczeń serwera, antywirusa ani kontroli administratora. Przyszłe funkcje WordPress będą walidować i sanityzować dane wejściowe, wykonywać escaping możliwie późno oraz sprawdzać uprawnienia i nonce. Zawartość katalogu uploads nie będzie dołączana ani wykonywana jako PHP.
 
 Projekt v1.0 zakłada, że sama wtyczka nie będzie przechowywać danych pacjentów ani odpowiedzi ankiet, instalować cookies, wysyłać telemetrii ani przekazywać danych do usług zewnętrznych. Moduł ankiety będzie jedynie odnośnikiem skonfigurowanym przez administratora; wtyczka nie będzie deklarować, że zewnętrzny formularz jest anonimowy.
 
@@ -70,7 +70,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów oraz validator kandydatów PDF. Integracja scanner–validator, katalog uploads WordPressa, cache, administracja, shortcode’y, frontend i klasyfikacja aktualne/nadchodzące/archiwalne pozostają planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF oraz pipeline zwalidowanego katalogu. Katalog uploads WordPressa, cache, administracja, shortcode’y, frontend i klasyfikacja aktualne/nadchodzące/archiwalne pozostają planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 

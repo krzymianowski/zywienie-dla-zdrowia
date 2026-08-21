@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, a Etap 3 — ograniczony standalone validator kandydatów PDF. Integracja scanner–validator oraz integracja z katalogiem uploads WordPressa, moduły publiczne, konfiguracja, cache i shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, a Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów. Integracja z katalogiem uploads WordPressa, moduły publiczne, konfiguracja, cache i shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -27,7 +27,7 @@ Scanner:
 - reprezentuje brak katalogu, błędny typ ścieżki, brak odczytu lub błąd skanowania przez kody katalogowe i puste kolekcje wyniku;
 - nie zapisuje absolutnej ścieżki źródłowej ani targetu symlinka w modelach wyniku.
 
-Scanner nie otwiera dokumentów, nie odczytuje ich zawartości, nie analizuje MIME ani magic bytes i nie potwierdza, że kandydat z rozszerzeniem `.pdf` jest rzeczywistym dokumentem PDF. Etap 3 dostarcza osobny, ograniczony validator kandydatów PDF, ale jego integracja ze scannerem przed przyszłym publicznym udostępnianiem pozostaje planowana. Scanner nie korzysta z WordPress API, nie tworzy katalogów i nie modyfikuje ani nie usuwa wpisów.
+Scanner nie otwiera dokumentów, nie odczytuje ich zawartości, nie analizuje MIME ani magic bytes i nie potwierdza, że kandydat z rozszerzeniem `.pdf` jest rzeczywistym dokumentem PDF. Etap 3 dostarcza osobny, ograniczony validator kandydatów PDF, a Etap 4 łączy oba komponenty w odrębnej warstwie orkiestracji bez zmiany odpowiedzialności scannera. Scanner nie korzysta z WordPress API, nie tworzy katalogów i nie modyfikuje ani nie usuwa wpisów.
 
 ## Zaimplementowany zakres Etapu 3
 
@@ -46,6 +46,23 @@ Validator:
 - zwraca jedynie informację, czy plik jest **valid PDF candidate**, lub maszynowo czytelny kod błędu.
 
 Validator nie jest pełnym parserem PDF, nie analizuje obiektów, xref, skryptów, formularzy, embedded files, metadanych, podpisów ani szyfrowania. Nie wykrywa malware, nie sanitizuje ani nie konwertuje dokumentów i nie gwarantuje bezpieczeństwa ich zawartości. Nie zastępuje zabezpieczeń serwera, antywirusa ani kontroli administratora. Przenośne API PHP nie zapewnia tutaj pełnej ochrony przed wszystkimi race conditions filesystemu odpowiadającej `open(..., O_NOFOLLOW)`.
+
+## Zaimplementowany zakres Etapu 4
+
+Standalone builder katalogu jest osobną warstwą orkiestracji. Scanner pozostaje niezależny i odpowiada za bezpieczne przeglądanie katalogu, typ wpisów, parsowanie filename, sortowanie i grupowanie kandydatów. Validator pozostaje niezależny i odpowiada wyłącznie za ograniczoną walidację wskazanego pliku jako PDF candidate.
+
+Builder:
+
+- przyjmuje zaufaną ścieżkę katalogu z przyszłej warstwy aplikacji lub konfiguracji, a nie bezpośrednio z requestu HTTP;
+- najpierw uruchamia scanner i zachowuje jego directory-level error bez wykonywania walidacji dokumentów po takim błędzie;
+- przekazuje do validatora wyłącznie dokumenty rozpoznane przez scanner, budując ścieżkę z zaufanego katalogu i parser-approved filename;
+- zachowuje kolejność dokumentów zwróconą przez scanner i usuwa z finalnego katalogu kandydatów odrzuconych przez validator;
+- łączy issues scannera i validatora jako nazwę wpisu oraz maszynowo czytelny kod błędu, po czym sortuje całość deterministycznie przez binarne `strcmp()`;
+- filtruje istniejące grupy scannera do zaakceptowanych dokumentów, zachowuje ich kolejność i pomija grupy, które stały się puste;
+- traktuje zmianę, usunięcie lub zastąpienie pliku pomiędzy scanem i validation jako entry-level issue zwrócone przez validator, bez przerywania całego katalogu;
+- nie przechowuje ani nie udostępnia ścieżki katalogu, ścieżki pliku ani targetu symlinka w publicznym modelu wyniku.
+
+Finalny katalog zawiera wyłącznie **validated PDF candidates**, które przeszły walidację nazwy, typu wpisu i ograniczone kontrole validatora PDF. Nie oznacza to skanowania malware, sanitizacji PDF, pełnej walidacji struktury dokumentu ani gwarancji bezpieczeństwa. Pipeline nie wykonuje zawartości plików, nie używa WordPress API i nie integruje się jeszcze z katalogiem uploads WordPressa.
 
 ## Cel
 
@@ -102,7 +119,7 @@ badania/
 materialy/
 ```
 
-Standalone scanner Etapu 2 nie tworzy tych katalogów i nie jest jeszcze połączony z katalogiem uploads WordPressa. Integracja oraz zarządzanie wymaganymi katalogami pozostają planowane.
+Standalone scanner Etapu 2 i pipeline katalogu Etapu 4 nie tworzą tych katalogów i nie są jeszcze połączone z katalogiem uploads WordPressa. Integracja oraz zarządzanie wymaganymi katalogami pozostają planowane.
 
 ### Planowana konwencja nazw jadłospisów
 
@@ -119,6 +136,8 @@ Zaimplementowane parser i scanner Etapów 1–2:
 - pozwalają na wiele diet lub dokumentów dla tego samego okresu;
 - sortują dokumenty według dat wynikających z nazwy, a nie według `filemtime`;
 - oddzielają poprawne dokumenty od nierozpoznanych wpisów bez przerywania całego skanowania.
+
+Pipeline Etapu 4 dodatkowo odrzuca z finalnego katalogu kandydatów, którzy nie przeszli ograniczonej walidacji PDF, filtruje ich grupy okresów oraz zachowuje scanner issues razem z validation issues.
 
 Nadal planowane są:
 

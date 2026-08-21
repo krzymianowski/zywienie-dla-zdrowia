@@ -4,7 +4,7 @@
 
 The repository is generic and is not tied to any particular organization or deployment.
 
-> **Development status:** version `0.1.0` is an early development version. The standalone filename parser, directory scanner, and limited PDF candidate validator are implemented, but their integration with WordPress and all user-facing features remain planned. This version is not production-ready.
+> **Development status:** version `0.1.0` is an early development version. The standalone filename parser, directory scanner, limited PDF candidate validator, and validated menu catalog pipeline are implemented, but their integration with WordPress and all user-facing features remain planned. This version is not production-ready.
 
 ## Status
 
@@ -14,7 +14,8 @@ The repository is generic and is not tied to any particular organization or depl
 - A standalone parser for menu filenames using the `YYYY-MM-DD_YYYY-MM-DD_name.pdf` convention, with an immutable document model and machine-readable parse errors.
 - A standalone, non-recursive menu directory scanner that rejects symlinks, reports unrecognized entries, sorts documents by filename dates, and groups exact periods deterministically.
 - A standalone PDF candidate validator with symlink, regular-file, readability, optional MIME, header, and bounded EOF checks.
-- PHPUnit tests for the filename parser, filesystem scanner, and PDF candidate validator without loading WordPress.
+- A standalone validated menu catalog builder that keeps only scanner-approved documents that pass limited PDF candidate validation, filters their period groups, and combines deterministic issues.
+- PHPUnit tests for the filename parser, filesystem scanner, PDF candidate validator, and validated catalog pipeline without loading WordPress.
 - Development-only Composer tooling for PHP_CodeSniffer and WordPress Coding Standards.
 - Initial project, security, contribution, and product-specification documentation.
 - A CI workflow for Composer validation, PHP syntax checking, PHPCS, and PHPUnit.
@@ -26,7 +27,6 @@ The repository is generic and is not tied to any particular organization or depl
 - Educational materials (materiały edukacyjne).
 - A configurable link to an external feedback form or survey.
 - WordPress integration with filesystem-backed documents under `wp-content/uploads/zywienie-dla-zdrowia/`.
-- Integration of the directory scanner with the PDF candidate validator before public document delivery.
 - Any additional server-side, malware-detection, or document-sanitization controls required by a deployment.
 - Configuration through the WordPress Options API and caching through the Transients API.
 - Shortcodes listed in the [working v1.0 specification](docs/specification-v1.0.md).
@@ -51,7 +51,7 @@ The planned scope supports publishing the applicable meal plans, the latest labo
 
 ## Security and privacy principles
 
-The implemented scanner accepts a trusted directory path from application configuration, examines only its direct entries, rejects symlinks, and never reads or executes document content. The standalone PDF validator performs bounded checks of a trusted file path, optional MIME detection, a `%PDF-X.Y` header, and an `%%EOF` marker. It does not fully parse or sanitize PDFs, detect malware, or guarantee document safety, and it does not replace server security, antivirus controls, or administrator review. Future WordPress-facing functionality will validate and sanitize input, escape output as late as possible, and enforce capabilities and nonces. Uploaded content will never be included or executed as PHP.
+The implemented scanner accepts a trusted directory path from application configuration, examines only its direct entries, rejects symlinks, and never reads or executes document content. The catalog builder validates only filename candidates approved by that scanner and combines scanner and validator issues without exposing source paths. Its final catalog contains candidates that passed filename validation, entry-type validation, and limited PDF candidate validation. This does not constitute malware scanning, PDF sanitization, full PDF structure validation, or a guarantee of document safety, and it does not replace server security, antivirus controls, or administrator review. Future WordPress-facing functionality will validate and sanitize input, escape output as late as possible, and enforce capabilities and nonces. Uploaded content will never be included or executed as PHP.
 
 The v1.0 design assumes that the plugin itself will not store patient data or survey responses, install cookies, send telemetry, or send data to external services. The survey feature will only link to a URL configured by an administrator; the plugin will not claim that the external form is anonymous.
 
@@ -70,7 +70,7 @@ composer lint
 composer test
 ```
 
-There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, and PDF candidate validator. Scanner-to-validator integration, WordPress uploads integration, caching, administration, shortcodes, frontend rendering, and current/upcoming/archive classification remain planned.
+There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, and validated catalog pipeline. WordPress uploads integration, caching, administration, shortcodes, frontend rendering, and current/upcoming/archive classification remain planned.
 
 Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md) and the repository instructions in [AGENTS.md](AGENTS.md).
 

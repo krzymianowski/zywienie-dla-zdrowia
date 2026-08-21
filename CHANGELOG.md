@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Standalone validated menu catalog builder that orchestrates scanning and limited PDF candidate validation without coupling the underlying components.
+- Immutable catalog result with filtered documents and period groups plus deterministically combined scanner and validation issues.
 - Standalone PDF candidate validator with optional MIME detection and bounded header and EOF checks.
 - Immutable PDF validation result and filesystem tests covering candidate validation, MIME mismatch, symlinks, bounded reads, and path-disclosure boundaries.
 - Standalone, non-recursive menu directory scanner with deterministic sorting and exact-period grouping.
