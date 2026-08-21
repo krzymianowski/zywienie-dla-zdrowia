@@ -12,7 +12,9 @@ Development-stage tooling for publishing information related to a “Żywienie d
 
 The minimum supported environment is WordPress 6.8 and PHP 8.2. PHP 8.3 or later is recommended.
 
-Version 0.1.0 contains a passive plugin bootstrap, a standalone menu filename parser, a non-recursive directory scanner, a limited PDF candidate validator, a validated menu catalog pipeline, related value objects, and development tooling. The catalog keeps only scanner-approved documents that pass the validator and combines scanner and validation issues. These checks do not provide malware scanning, PDF sanitization, full PDF structure validation, or a guarantee of document safety. WordPress integration and user-facing features are not implemented, and this version is not presented as a stable release.
+Version 0.1.0 contains a standalone validated menu catalog pipeline and its first WordPress integration. During activation, the plugin resolves the current uploads base directory through WordPress API and idempotently creates `zywienie-dla-zdrowia/jadlospisy/`. A WordPress catalog provider connects that directory to the standalone pipeline only when explicitly requested. Deactivation does not delete documents. Administration and user-facing features are not implemented, and this version is not presented as a stable release.
+
+The catalog keeps only scanner-approved documents that pass limited PDF candidate validation and combines scanner and validation issues. These checks do not provide malware scanning, PDF sanitization, full PDF structure validation, or a guarantee of document safety.
 
 The plugin is a technical publishing tool, not legal advice. It does not guarantee legal compliance. Site administrators remain responsible for the content, completeness, and accuracy of published information.
 
@@ -42,4 +44,5 @@ No. The privacy properties of an external form are outside the plugin's control 
 * Added a standalone menu directory scanner with issue reporting, deterministic sorting, exact-period grouping, and filesystem tests.
 * Added a standalone PDF candidate validator, validation result, optional MIME checks, bounded header and EOF checks, and unit tests.
 * Added a standalone validated menu catalog builder with filtered period groups and combined deterministic issues.
-* Added the initial passive plugin bootstrap, project documentation, and development quality tooling.
+* Added WordPress uploads path resolution, activation-time menu directory creation, and a catalog provider.
+* Added the initial plugin bootstrap, project documentation, and development quality tooling.

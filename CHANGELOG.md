@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- WordPress uploads-based menu storage with activation-time, idempotent directory creation and non-destructive retention behavior.
+- WordPress menu catalog provider connecting the managed `jadlospisy` directory to the standalone validated catalog pipeline.
 - Standalone validated menu catalog builder that orchestrates scanning and limited PDF candidate validation without coupling the underlying components.
 - Immutable catalog result with filtered documents and period groups plus deterministically combined scanner and validation issues.
 - Standalone PDF candidate validator with optional MIME detection and bounded header and EOF checks.
@@ -18,6 +20,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Standalone menu filename parser with calendar-date, range, extension, name, and unsafe-path validation.
 - Immutable menu document model and machine-readable parse result.
 - PHPUnit 11 unit-test infrastructure and parser test coverage without WordPress.
-- Passive WordPress plugin bootstrap for development version `0.1.0`.
+- WordPress plugin bootstrap for development version `0.1.0`.
 - Initial product, security, contribution, and repository guidance.
 - Composer, WordPress Coding Standards, and CI quality tooling.

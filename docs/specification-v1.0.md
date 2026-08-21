@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, a Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów. Integracja z katalogiem uploads WordPressa, moduły publiczne, konfiguracja, cache i shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, a Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`. Moduły publiczne, administracja, konfiguracja, cache i shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -64,6 +64,25 @@ Builder:
 
 Finalny katalog zawiera wyłącznie **validated PDF candidates**, które przeszły walidację nazwy, typu wpisu i ograniczone kontrole validatora PDF. Nie oznacza to skanowania malware, sanitizacji PDF, pełnej walidacji struktury dokumentu ani gwarancji bezpieczeństwa. Pipeline nie wykonuje zawartości plików, nie używa WordPress API i nie integruje się jeszcze z katalogiem uploads WordPressa.
 
+## Zaimplementowany zakres Etapu 5
+
+Warstwa WordPress integration jest oddzielona od standalone komponentów Etapów 1–4. Żadna klasa parsera, scannera, validatora, buildera ani ich modeli wyniku nie korzysta z WordPress API.
+
+`ZFDZ_WordPress_Menu_Storage`:
+
+- pobiera bieżący uploads `basedir` przez `wp_get_upload_dir()` i defensywnie sprawdza odpowiedź oraz błąd WordPress uploads;
+- wyznacza stałe, niekonfigurowalne ścieżki `zywienie-dla-zdrowia/jadlospisy` bez wartości z requestu HTTP i bez założenia standardowego `wp-content/uploads`;
+- odrzuca bezpośrednie symlinki oraz konflikty typu wpisu dla zarządzanego root i katalogu `jadlospisy`, bez zakazywania symlinków wyżej w konfiguracji uploads;
+- zwraca stabilne `WP_Error`: `uploads_unavailable`, `storage_unsafe_symlink`, `storage_path_conflict`, `storage_create_failed` lub `storage_not_readable`, bez absolutnej ścieżki w komunikacie lub error data;
+- udostępnia `get_menu_directory_path()` bez tworzenia katalogu oraz idempotentne `ensure_menu_directory()` korzystające z `wp_mkdir_p()`;
+- po utworzeniu sprawdza typ i czytelność katalogu, ale nie wymaga `is_writable()`, ponieważ dokumenty mogą być dostarczane przez osobne konto systemowe.
+
+Activation hook wywołuje `ensure_menu_directory()`. Błąd przerywa aktywację przez krótki, tłumaczalny komunikat `wp_die()` sugerujący kontrolę konfiguracji i uprawnień uploads, bez ujawniania ścieżki. Ponowna aktywacja nie usuwa ani nie nadpisuje istniejącego prawidłowego katalogu. Plugin nie rejestruje deactivation hooka, nie dodaje `uninstall.php` i nie usuwa dokumentów.
+
+`ZFDZ_WordPress_Menu_Catalog_Provider` pobiera ścieżkę ze storage i dopiero po jawnym `get_catalog()` przekazuje ją do standalone `ZFDZ_Menu_Catalog_Builder`. Błąd storage jest konwertowany na `ZFDZ_Menu_Catalog_Result::from_directory_error()`, dzięki czemu przyszli konsumenci otrzymają jeden typ wyniku. Provider nie tworzy brakującego katalogu podczas odczytu; jego usunięcie po aktywacji prowadzi do istniejącego `directory_not_found`. `create_default()` jest prostą fabryką konkretnych zależności, a nie service containerem.
+
+Samo załadowanie pluginu rejestruje activation hook i ładuje klasy, ale nie tworzy katalogu, nie skanuje filesystemu i nie waliduje PDF. Publiczne URL-e, panel, shortcode’y, frontend i cache nie są częścią Etapu 5.
+
 ## Cel
 
 Żywienie dla Zdrowia będzie wtyczką WordPress wspierającą prowadzenie publicznej sekcji:
@@ -103,23 +122,24 @@ Projekt nie będzie automatycznie interpretować przepisów ani prawnie walidowa
 
 Określenie ankiety w interfejsie może odzwierciedlać zamierzony sposób jej użycia, ale wtyczka nie może deklarować ani gwarantować, że zewnętrzny formularz rzeczywiście jest anonimowy. Ocena zewnętrznej usługi pozostaje po stronie administratora.
 
-## Planowane źródło dokumentów
+## Źródło dokumentów
 
-Źródłem dokumentów będzie filesystem w katalogu:
+Zaimplementowany katalog jadłospisów znajduje się pod bieżącym uploads `basedir` zwróconym przez WordPress API:
 
 ```text
-wp-content/uploads/zywienie-dla-zdrowia/
+<WordPress uploads basedir>/
+└── zywienie-dla-zdrowia/
+    └── jadlospisy/
 ```
 
-Planowane podkatalogi:
+Etap 5 tworzy wyłącznie root pluginu i `jadlospisy/`. Nadal planowane podkatalogi pozostałych modułów:
 
 ```text
-jadlospisy/
 badania/
 materialy/
 ```
 
-Standalone scanner Etapu 2 i pipeline katalogu Etapu 4 nie tworzą tych katalogów i nie są jeszcze połączone z katalogiem uploads WordPressa. Integracja oraz zarządzanie wymaganymi katalogami pozostają planowane.
+Standalone scanner Etapu 2 i pipeline katalogu Etapu 4 nadal nie znają WordPress API. Storage Etapu 5 zarządza lokalizacją i lifecycle katalogu, a provider przekazuje ustaloną ścieżkę do standalone buildera dopiero na żądanie.
 
 ### Planowana konwencja nazw jadłospisów
 
@@ -187,8 +207,8 @@ Nazwy plików zawsze będą traktowane jako niezaufane dane wejściowe. Szczegó
 ## Planowane dostarczanie dokumentów i SFTP
 
 - Plugin nie będzie implementować serwera ani klienta SFTP.
-- SFTP jest jednym z przewidywanych zewnętrznych sposobów dostarczania plików do katalogu dokumentów.
-- Dokumentacja wdrożeniowa powinna rekomendować osobne konto z dostępem ograniczonym wyłącznie do katalogu dokumentów. Credentials i konfiguracja rzeczywistego wdrożenia nie mogą trafić do publicznego repozytorium.
+- SFTP jest jednym z przewidywanych zewnętrznych sposobów dostarczania plików bezpośrednio do `<WordPress uploads basedir>/zywienie-dla-zdrowia/jadlospisy/`.
+- Administrator serwera odpowiada za konfigurację osobnego konta SFTP z dostępem ograniczonym wyłącznie do katalogu dokumentów. Credentials i konfiguracja rzeczywistego wdrożenia nie mogą trafić do publicznego repozytorium.
 - Plugin powinien działać identycznie niezależnie od tego, czy plik został dostarczony przez SFTP, czy inną bezpieczną metodę poza WordPressem.
 
 ## Planowany panel administracyjny

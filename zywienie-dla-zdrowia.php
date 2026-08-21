@@ -26,3 +26,19 @@ require_once __DIR__ . '/includes/class-zfdz-pdf-validation-result.php';
 require_once __DIR__ . '/includes/class-zfdz-pdf-file-validator.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-catalog-result.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-catalog-builder.php';
+require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-storage.php';
+require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-catalog-provider.php';
+
+register_activation_hook(
+	__FILE__,
+	static function (): void {
+		$result = ( new ZFDZ_WordPress_Menu_Storage() )->ensure_menu_directory();
+
+		if ( is_wp_error( $result ) ) {
+			wp_die(
+				esc_html__( 'Nie udało się przygotować katalogu jadłospisów. Sprawdź konfigurację i uprawnienia katalogu przesyłanych plików WordPress.', 'zywienie-dla-zdrowia' ),
+				esc_html__( 'Błąd aktywacji wtyczki', 'zywienie-dla-zdrowia' )
+			);
+		}
+	}
+);
