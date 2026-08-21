@@ -4,7 +4,7 @@
 
 The repository is generic and is not tied to any particular organization or deployment.
 
-> **Development status:** version `0.1.0` is an early development version. The standalone menu pipeline and period classifier, WordPress uploads integration, transient-backed catalog service, technical administration page, public menu shortcodes, and the standalone filename-and-association foundation for laboratory results are implemented. WordPress integration and public presentation of laboratory results remain planned. This version is not production-ready.
+> **Development status:** version `0.1.0` is an early development version. The standalone menu pipeline and period classifier, WordPress uploads integration, transient-backed catalog service, technical administration page, public menu shortcodes, and the standalone laboratory-result filesystem catalog pipeline are implemented. WordPress integration and public presentation of laboratory results remain planned. This version is not production-ready.
 
 ## Status
 
@@ -18,6 +18,8 @@ The repository is generic and is not tied to any particular organization or depl
 - A standalone, deterministic period classifier that divides validated menu groups into current, upcoming, and archived collections for an explicitly supplied calendar date.
 - A standalone laboratory-result filename parser for `YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_name.pdf`, with immutable document and parse-result models plus machine-readable validation errors.
 - A deterministic standalone matcher that associates laboratory-result documents with menu-period groups only when both period dates match exactly, while representing missing groups as valid unmatched results.
+- A standalone, non-recursive laboratory-result directory scanner that rejects symlinks, preserves parser errors, and returns deterministically sorted recognized documents and issues.
+- A standalone laboratory-result catalog pipeline that reuses the bounded PDF candidate validator, excludes rejected files, combines deterministic scanner and validation issues, and returns validated documents with matched or unmatched menu-period associations.
 - WordPress uploads path resolution, activation-time creation of `zywienie-dla-zdrowia/jadlospisy/`, and a catalog provider connecting that directory to the standalone pipeline.
 - A WordPress Transients API cache with an approximately five-minute lifetime and a catalog service providing cached reads plus programmatic refresh and clear operations.
 - A native WordPress “Status publikacji” administration page with technical catalog status, current/upcoming/archived period counts based on the WordPress site date, safe issue descriptions, and a capability- and nonce-protected manual refresh using POST/Redirect/GET.
@@ -31,7 +33,7 @@ The repository is generic and is not tied to any particular organization or depl
 ### Planned for v1.0
 
 - Menus (jadłospisy).
-- The `badania/` directory, laboratory-result scanner and PDF candidate pipeline, WordPress storage/cache/admin integration, latest-result policy, public shortcode, and frontend links.
+- The `badania/` directory and its activation lifecycle, WordPress storage/cache/admin integration for laboratory results, latest-result policy, public shortcode, and frontend links.
 - Educational materials (materiały edukacyjne).
 - A configurable link to an external feedback form or survey.
 - Any additional server-side, malware-detection, or document-sanitization controls required by a deployment.
@@ -123,13 +125,15 @@ Separating archived documents into their own shortcode is presentation behavior,
 
 Both shortcodes use `get_catalog()` and never force a refresh. Files delivered outside WordPress become visible when the approximately five-minute cache expires or after an administrator uses the protected manual refresh. Period classification uses a fresh WordPress site date on every render and is not cached.
 
-## Standalone laboratory-result foundation
+## Standalone laboratory-result filesystem pipeline
 
 Stage 11 defines the filename contract `YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_name.pdf`. The first two dates identify the exact menu period, the third is the laboratory-result date, and the remaining non-empty part is the display name. The result date must be a real calendar date but may fall before, inside, or after the referenced menu period.
 
-The standalone parser rejects path input, non-PDF extensions, malformed or impossible dates, reversed menu periods, invalid UTF-8, control characters, and invalid names. It returns an immutable document or one stable machine-readable error. The matcher compares only `menu_start_date` and `menu_end_date` with existing `ZFDZ_Menu_Period_Group` dates. An absent exact period produces an unmatched association, not a parse error or exception. Associations are ordered deterministically by result date descending, menu dates descending, and original filename using binary `strcmp()` ascending.
+The standalone parser rejects path input, non-PDF extensions, malformed or impossible dates, reversed menu periods, invalid UTF-8, control characters, and invalid names. It returns an immutable document or one stable machine-readable error. The non-recursive scanner rejects symlinks and unsupported entry types, passes only regular-file basenames to the parser, and never opens document content. The catalog builder validates only scanner-approved filenames with the existing bounded PDF candidate validator, combines scanner and validator issues deterministically, and sends validated candidates to the exact-period matcher.
 
-No `badania/` directory, scanner, PDF content validation pipeline, WordPress storage, cache, administration UI, latest-result selection policy, shortcode, or public link is implemented yet. Associating a result with a menu period from filename dates is a technical mechanism only. The plugin does not interpret laboratory content, assess the result, or confirm compliance with norms or legal requirements.
+The matcher compares only `menu_start_date` and `menu_end_date` with existing `ZFDZ_Menu_Period_Group` dates. An absent exact period produces an unmatched association, not a parse, PDF-validation, or catalog issue. Associations and final documents are ordered deterministically by result date descending, menu dates descending, and original filename using binary `strcmp()` ascending. No latest-result selection policy is implemented.
+
+The plugin does not yet create a `badania/` directory and does not provide WordPress storage, cache, administration UI, shortcode, or public links for laboratory results. The standalone pipeline accepts a trusted directory path from a future application layer. Associating a result with a menu period from filename dates is a technical mechanism only. The plugin does not interpret laboratory content, assess the result, or confirm compliance with norms or legal requirements.
 
 ## Development
 
@@ -142,7 +146,7 @@ composer lint
 composer test
 ```
 
-There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, current/upcoming/archive period classifier, laboratory-result filename parser, and exact-period matcher. The WordPress-specific storage lifecycle, transient cache layer, administration page, and public shortcodes are covered by lint and PHPCS at this stage and require manual smoke tests after review. The aggregate shortcode, remaining module frontend, expanded administration, and configuration are still planned.
+There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, current/upcoming/archive period classifier, laboratory-result filename parser, exact-period matcher, non-recursive scanner, and validated catalog pipeline. The WordPress-specific storage lifecycle, transient cache layer, administration page, and public shortcodes are covered by lint and PHPCS at this stage and require manual smoke tests after review. The aggregate shortcode, remaining module frontend, expanded administration, and configuration are still planned.
 
 Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md) and the repository instructions in [AGENTS.md](AGENTS.md).
 

@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, a Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych. Konfiguracja przez Options API, filesystem/WordPress pipeline badań, administracja pozostałych modułów i ich shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, a Etap 12 — standalone laboratory-result filesystem catalog pipeline. Konfiguracja przez Options API, WordPress pipeline badań, administracja pozostałych modułów i ich shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -199,9 +199,25 @@ Parser odrzuca NUL i separatory ścieżek, rozszerzenia inne niż PDF, błędną
 
 Matcher nie używa daty wyniku do ustalania grupy, nie stosuje fuzzy matching, nakładania zakresów, najbliższej daty, nazw, locale ani metadata filesystemu. Wiele wyników może wskazywać tę samą grupę. Brak dokładnej grupy tworzy association unmatched i nie jest wyjątkiem ani błędem parsera. Powtórzenie tego samego okresu w wejściowych grupach jest naruszeniem kontraktu programistycznego. Associations są sortowane według `result_date` malejąco, następnie `menu_start_date` malejąco, `menu_end_date` malejąco i oryginalnego filename rosnąco przez binarny `strcmp()`.
 
-Nowe klasy nie korzystają z filesystemu, WordPress API, zegara, `filemtime`, requestów ani zawartości dokumentów. Modele nie przechowują ścieżek, URL-i, MIME, treści ani WordPress IDs. Etap 11 nie tworzy katalogu `badania/` i nie dodaje scannera, walidacji PDF candidate w pipeline badań, WordPress storage, cache, panelu, polityki wyboru najnowszego wyniku, publicznego shortcode ani linków frontendu.
+Klasy Etapu 11 nie korzystają z filesystemu, WordPress API, zegara, `filemtime`, requestów ani zawartości dokumentów. Modele nie przechowują ścieżek, URL-i, MIME, treści ani WordPress IDs. Warstwy filesystemu i ograniczonej walidacji PDF candidate zostały dodane później w Etapie 12; nadal nie ma WordPress storage, cache, panelu, polityki wyboru najnowszego wyniku, publicznego shortcode ani linków frontendu dla badań.
 
 Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
+
+## Zaimplementowany zakres Etapu 12
+
+Etap 12 dodaje całkowicie standalone laboratory-result filesystem catalog pipeline:
+
+- niezmienny `ZFDZ_Lab_Result_Scan_Issue` zawierający wyłącznie nazwę wpisu i maszynowy kod błędu;
+- niezmienny `ZFDZ_Lab_Result_Scan_Result` rozdzielający successful scan z entry-level issues od directory-level failure;
+- nierekurencyjny `ZFDZ_Lab_Result_Directory_Scanner`, który bada tylko bezpośrednie wpisy, odrzuca symlinki i przekazuje parserowi wyłącznie basename zwykłych plików;
+- niezmienny `ZFDZ_Lab_Result_Catalog_Result` zawierający wyłącznie validated PDF candidates, odpowiadające im associations oraz połączone issues;
+- `ZFDZ_Lab_Result_Catalog_Builder`, który orkiestruje scanner, istniejący bounded `ZFDZ_PDF_File_Validator` oraz matcher dokładnego okresu z Etapu 11.
+
+Scanner działa deterministycznie, nie otwiera zawartości dokumentów i zachowuje dokładne kody błędów parsera. Builder waliduje PDF wyłącznie dla kandydatów filename zaakceptowanych przez scanner. Odrzucony kandydat nie trafia do finalnych documents ani associations, a jego pierwszy błąd validatora trafia do issues. Scanner i validator issues są wspólnie sortowane binarnie według nazwy wpisu, a następnie kodu błędu.
+
+Finalny katalog zawiera associations w kolejności matchera: `result_date` malejąco, `menu_start_date` malejąco, `menu_end_date` malejąco oraz oryginalny filename rosnąco przez `strcmp()`. Documents są wyprowadzane z associations w tej samej kolejności i każdy validated document występuje dokładnie raz. Association unmatched jest prawidłowym stanem technicznym, nie entry-level issue ani invalid document. Etap 12 nie wprowadza polityki wyboru najnowszego wyniku.
+
+Pipeline przyjmuje zaufaną ścieżkę katalogu z przyszłej warstwy aplikacji, nie korzysta z WordPress API, zegara, `filemtime`, requestów ani locale i nie przechowuje ścieżek w publicznych modelach. Nie tworzy katalogu `badania/`, nie dodaje WordPress storage, cache, panelu lub publicznego frontendu. Ograniczona walidacja PDF candidate nie jest pełnym parserem PDF, skanowaniem malware ani sanitizacją. Pipeline nie interpretuje treści laboratoryjnej, nie ocenia wyniku i nie sprawdza norm.
 
 ## Cel
 
@@ -306,19 +322,21 @@ YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf
 
 Kolejne pola oznaczają `menu_start_date`, `menu_end_date`, `result_date` oraz niepustą nazwę. Pierwsze dwie daty wskazują dokładny okres jadłospisu, z którym dokument ma zostać technicznie powiązany. `result_date` jest niezależną datą wyniku i może przypadać przed, wewnątrz lub po okresie jadłospisu.
 
-Zaimplementowane parser i matcher:
+Zaimplementowane parser, scanner, catalog pipeline i matcher:
 
 - walidują wszystkie trzy daty jako rzeczywiste daty kalendarzowe i wymagają `menu_start_date <= menu_end_date`;
 - odrzucają ścieżki, rozszerzenia inne niż `.pdf`, błędny UTF-8, znaki kontrolne, puste nazwy oraz whitespace na ich granicach;
 - dopasowują dokument wyłącznie przez dokładną zgodność obu dat okresu z `ZFDZ_Menu_Period_Group`;
 - reprezentują brak odpowiadającej grupy jako unmatched bez odrzucenia prawidłowo nazwanej pozycji;
 - pozwalają na wiele wyników dla jednego okresu i deterministycznie sortują je przede wszystkim według `result_date` malejąco;
-- nie używają WordPress API, filesystemu, `filemtime`, locale ani bieżącego czasu.
+- nierekurencyjnie skanują zaufany katalog, odrzucają symlinki i nieobsługiwane typy wpisów oraz zachowują maszynowe błędy filename;
+- wykorzystują istniejący bounded PDF candidate validator wyłącznie dla nazw zaakceptowanych przez parser;
+- tworzą finalny katalog validated laboratory-result candidates z associations matched lub unmatched i deterministycznie połączonymi issues;
+- nie używają WordPress API, `filemtime`, locale ani bieżącego czasu.
 
 Nadal planowane są:
 
 - katalog `badania/` i jego tworzenie podczas aktywacji;
-- scanner katalogu oraz ograniczona walidacja kandydatów PDF w pipeline badań;
 - WordPress storage, cache i panel administratora dla badań;
 - identyfikacja najnowszego wyniku na podstawie daty zapisanej w nazwie;
 - polityka wyboru najnowszego wyniku spośród wielu prawidłowych dokumentów;
@@ -326,7 +344,7 @@ Nadal planowane są:
 - ostrzeganie administratora, jeżeli najnowszy wynik nie został prawidłowo powiązany;
 - publiczny i zbiorczy shortcode oraz linkowanie w frontendzie.
 
-Nazwy plików są traktowane jako niezaufane dane wejściowe. Etap 11 nie otwiera dokumentów, nie interpretuje treści PDF i nie ocenia wyniku badania medycznie ani normatywnie.
+Nazwy plików są traktowane jako niezaufane dane wejściowe. Scanner nie otwiera treści dokumentów, a ograniczony validator wykonuje tylko bounded reads wymagane do sprawdzenia kandydata PDF. Pipeline nie interpretuje treści PDF i nie ocenia wyniku badania medycznie ani normatywnie.
 
 Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
 

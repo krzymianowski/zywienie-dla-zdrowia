@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Standalone, non-recursive laboratory-result directory scanner with immutable scan issues/results and deterministic entry handling.
+- Standalone laboratory-result catalog pipeline reusing the bounded PDF candidate validator and exact-period matcher.
+- Immutable laboratory-result catalog result containing validated candidates, matched or unmatched associations, and combined deterministic issues without source paths.
 - Standalone laboratory-result filename parser with immutable document and machine-readable parse-result models for the `YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_name.pdf` contract.
 - Deterministic exact-period matcher producing immutable matched or unmatched associations between laboratory-result documents and existing menu-period groups.
 - Public parameter-free `[zfdz_jadlospisy_archiwum]` shortcode rendering grouped archived menu periods from newest to oldest through the existing validated catalog pipeline.
