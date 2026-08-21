@@ -4,7 +4,7 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline i classifier okresów jadłospisów, integracja z WordPress uploads, serwis katalogu oparty na transientach i pierwsza techniczna strona administracyjna są zaimplementowane, ale funkcje publiczne i pozostałe moduły nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline i classifier okresów jadłospisów, integracja z WordPress uploads, serwis katalogu oparty na transientach, techniczna strona administracyjna oraz pierwszy publiczny shortcode są zaimplementowane. Publiczne archiwum i pozostałe moduły nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
@@ -19,6 +19,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Wyznaczanie ścieżki przez WordPress uploads API, tworzenie `zywienie-dla-zdrowia/jadlospisy/` podczas aktywacji oraz provider łączący ten katalog ze standalone pipeline.
 - Cache WordPress Transients API o czasie życia około pięciu minut oraz serwis katalogu udostępniający odczyt z cache i programowe operacje refresh/clear.
 - Natywną stronę administracyjną WordPress „Status publikacji” ze statusem technicznym katalogu, licznikami okresów aktualnych/nadchodzących/archiwalnych względem daty witryny WordPress, bezpiecznymi opisami problemów i ręcznym odświeżaniem chronionym capability oraz nonce w przepływie POST/Redirect/GET.
+- Bezparametrowy shortcode `[zfdz_jadlospisy]`, który grupuje zwalidowanych kandydatów PDF według dokładnego okresu oraz renderuje linki do aktualnych i nadchodzących jadłospisów na podstawie WordPress uploads base URL.
 - Testy PHPUnit parsera nazw, scannera filesystemu, validatora kandydatów PDF, pipeline katalogu i classifiera okresów bez uruchamiania WordPressa.
 - Narzędzia developerskie Composer: PHP_CodeSniffer i WordPress Coding Standards.
 - Początkową dokumentację projektu, bezpieczeństwa, współpracy i specyfikacji produktu.
@@ -32,7 +33,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
 - Dodatkowe zabezpieczenia serwerowe, antywirusowe lub sanitizacja dokumentów wymagane przez konkretne wdrożenie.
 - Konfiguracja przez WordPress Options API.
-- Listy dokumentów aktualnych, nadchodzących i archiwalnych, rozbudowa panelu administracyjnego o pozostałe moduły, shortcode’y oraz publiczny frontend.
+- Publiczne archiwum jadłospisów, zbiorczy shortcode `[zywienie_dla_zdrowia]`, shortcode’y pozostałych modułów, rozbudowa panelu administracyjnego oraz opcjonalne style frontendu.
 - Shortcode’y wymienione w [roboczej specyfikacji v1.0](docs/specification-v1.0.md).
 
 ### Poza zakresem v1.0 (Out of scope)
@@ -95,6 +96,22 @@ Na tym etapie status techniczny **OK** oznacza wyłącznie, że katalog jest tec
 
 Klasyfikacja okresów jest obliczana po pobraniu katalogu z cache i nie trafia do transientu. Dzięki temu zmiana daty witryny WordPress wpływa na klasyfikację przy następnym renderowaniu strony bez invalidacji cached catalog.
 
+## Publiczny shortcode jadłospisów
+
+Na stronie WordPress należy umieścić bezparametrowy shortcode:
+
+```text
+[zfdz_jadlospisy]
+```
+
+Shortcode pobiera istniejący cached validated catalog, klasyfikuje grupy względem bieżącej daty witryny WordPress oraz renderuje kolejno sekcje **Aktualne jadłospisy** i **Nadchodzące jadłospisy**. Dokumenty z dokładnie tym samym zakresem dat pozostają w jednej grupie okresu. Najbliższe nadchodzące okresy są pokazywane jako pierwsze. Puste sekcje pozostają widoczne z jednoznacznym komunikatem, a techniczny błąd katalogu lub URL uploads powoduje wyłącznie krótki publiczny komunikat niedostępności bez danych diagnostycznych.
+
+Linki powstają z `baseurl` zwróconego przez `wp_get_upload_dir()` oraz oryginalnego filename zakodowanego przez `rawurlencode()`. Widoczna etykieta wykorzystuje nazwę rozpoznaną przez parser. Entry-level issues i nazwy błędnych wpisów nigdy nie są renderowane, a poprawne dokumenty pozostają widoczne, gdy katalog zawiera również issues. Etap 9 nie linkuje okresów archiwalnych w `[zfdz_jadlospisy]`.
+
+Pominięcie archiwum nie jest kontrolą dostępu. Plik znajdujący się w publicznym WordPress uploads może nadal być dostępny przez bezpośredni URL, jeżeli jest on znany. Ten etap nie dodaje private storage, proxy pobierania, blokowania URL-i ani reguł serwera WWW. Linkowane pliki są wyłącznie zwalidowanymi kandydatami PDF; istniejące kontrole nie zapewniają skanowania malware, sanitizacji, pełnego parsowania PDF ani gwarancji bezpieczeństwa.
+
+Shortcode korzysta z `get_catalog()` i nigdy nie wymusza refresh. Pliki dostarczone poza WordPressem stają się widoczne po wygaśnięciu około pięciominutowego cache lub po chronionym ręcznym odświeżeniu przez administratora. Klasyfikacja wykorzystuje świeżą datę witryny WordPress podczas każdego renderowania i nie jest cache’owana.
+
 ## Development
 
 Minimalne wspierane środowisko to WordPress 6.8 oraz PHP 8.2. Zalecane jest PHP 8.3 lub nowsze. Narzędzia developerskie wymagają Composer 2. Instalacja zależności developerskich i uruchomienie kontroli:
@@ -106,7 +123,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu oraz classifier okresów aktualne/nadchodzące/archiwalne. WordPress-specific lifecycle storage, warstwa cache transientów i strona administracyjna są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Publiczne shortcode’y, frontend, listy okresów i dokumentów, administracja pozostałych modułów oraz pozostała konfiguracja nadal są planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu oraz classifier okresów aktualne/nadchodzące/archiwalne. WordPress-specific lifecycle storage, warstwa cache transientów, strona administracyjna i publiczny shortcode są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Zbiorczy shortcode, publiczne archiwum, frontend pozostałych modułów, rozbudowana administracja i konfiguracja nadal są planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 

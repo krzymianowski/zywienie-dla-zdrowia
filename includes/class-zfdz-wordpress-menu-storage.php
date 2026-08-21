@@ -50,6 +50,23 @@ final class ZFDZ_WordPress_Menu_Storage {
 	}
 
 	/**
+	 * Returns the public URL of the managed menu directory without creating it.
+	 *
+	 * @return string|WP_Error
+	 */
+	public function get_menu_directory_url(): string|WP_Error {
+		$upload_base_url = $this->get_upload_base_url();
+
+		if ( is_wp_error( $upload_base_url ) ) {
+			return $upload_base_url;
+		}
+
+		$managed_root_url = trailingslashit( $upload_base_url ) . self::ROOT_DIRECTORY_NAME;
+
+		return trailingslashit( $managed_root_url ) . self::MENU_DIRECTORY_NAME;
+	}
+
+	/**
 	 * Creates the managed menu directory when necessary and verifies it.
 	 *
 	 * @return true|WP_Error
@@ -112,6 +129,40 @@ final class ZFDZ_WordPress_Menu_Storage {
 		}
 
 		return $upload_directory['basedir'];
+	}
+
+	/**
+	 * Returns the WordPress uploads base URL after defensive validation.
+	 *
+	 * @return string|WP_Error
+	 */
+	private function get_upload_base_url(): string|WP_Error {
+		$upload_directory = wp_get_upload_dir();
+
+		if (
+			! is_array( $upload_directory )
+			|| ! isset( $upload_directory['baseurl'] )
+			|| ! is_string( $upload_directory['baseurl'] )
+			|| '' === trim( $upload_directory['baseurl'] )
+		) {
+			return $this->create_error( self::ERROR_UPLOADS_UNAVAILABLE );
+		}
+
+		if (
+			isset( $upload_directory['error'] )
+			&& false !== $upload_directory['error']
+			&& '' !== $upload_directory['error']
+		) {
+			return $this->create_error( self::ERROR_UPLOADS_UNAVAILABLE );
+		}
+
+		$upload_base_url = esc_url_raw( $upload_directory['baseurl'], array( 'http', 'https' ) );
+
+		if ( '' === $upload_base_url ) {
+			return $this->create_error( self::ERROR_UPLOADS_UNAVAILABLE );
+		}
+
+		return $upload_base_url;
 	}
 
 	/**
