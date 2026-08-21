@@ -4,7 +4,7 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów, integracja z WordPress uploads i serwis katalogu oparty na transientach są zaimplementowane, ale administracja oraz wszystkie funkcje użytkowe pozostają planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów, integracja z WordPress uploads, serwis katalogu oparty na transientach i pierwsza techniczna strona administracyjna są zaimplementowane, ale funkcje publiczne i pozostałe moduły nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
@@ -17,6 +17,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Niezależny builder zwalidowanego katalogu jadłospisów, który zachowuje tylko dokumenty zaakceptowane przez scanner i ograniczony validator PDF, filtruje grupy okresów oraz łączy deterministycznie uporządkowane issues.
 - Wyznaczanie ścieżki przez WordPress uploads API, tworzenie `zywienie-dla-zdrowia/jadlospisy/` podczas aktywacji oraz provider łączący ten katalog ze standalone pipeline.
 - Cache WordPress Transients API o czasie życia około pięciu minut oraz serwis katalogu udostępniający odczyt z cache i programowe operacje refresh/clear.
+- Natywną stronę administracyjną WordPress „Status publikacji” z licznikami katalogu jadłospisów, bezpiecznymi opisami problemów i ręcznym odświeżaniem chronionym capability oraz nonce w przepływie POST/Redirect/GET.
 - Testy PHPUnit parsera nazw, scannera filesystemu, validatora kandydatów PDF i pipeline katalogu bez uruchamiania WordPressa.
 - Narzędzia developerskie Composer: PHP_CodeSniffer i WordPress Coding Standards.
 - Początkową dokumentację projektu, bezpieczeństwa, współpracy i specyfikacji produktu.
@@ -29,8 +30,8 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Materiały edukacyjne.
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
 - Dodatkowe zabezpieczenia serwerowe, antywirusowe lub sanitizacja dokumentów wymagane przez konkretne wdrożenie.
-- Konfiguracja przez WordPress Options API i kontrolka administracyjna do ręcznego odświeżania katalogu.
-- Panel administratora, Status publikacji, shortcode’y i publiczny frontend.
+- Konfiguracja przez WordPress Options API.
+- Rozbudowa panelu administracyjnego o pozostałe moduły, shortcode’y i publiczny frontend.
 - Shortcode’y wymienione w [roboczej specyfikacji v1.0](docs/specification-v1.0.md).
 
 ### Poza zakresem v1.0 (Out of scope)
@@ -53,7 +54,7 @@ Planowany zakres wspiera publikację stosowanych jadłospisów, ostatniego wynik
 
 ## Bezpieczeństwo i prywatność
 
-Zaimplementowany scanner przyjmuje zaufaną ścieżkę katalogu z konfiguracji aplikacji, sprawdza wyłącznie bezpośrednie wpisy, odrzuca symlinki oraz nigdy nie czyta ani nie wykonuje zawartości dokumentów. Builder katalogu waliduje wyłącznie kandydatów filename zaakceptowanych przez scanner i łączy problemy scannera oraz validatora bez ujawniania ścieżek źródłowych. Finalny katalog zawiera kandydatów, którzy przeszli walidację nazwy, typu wpisu i ograniczoną walidację PDF candidate. WordPress storage odrzuca bezpośrednie symlinki i kolidujące pliki w dwóch ścieżkach zarządzanych przez plugin. Nie oznacza to skanowania malware, sanitizacji PDF, pełnej walidacji struktury PDF ani gwarancji bezpieczeństwa dokumentu i nie zastępuje zabezpieczeń serwera, antywirusa ani kontroli administratora. Przyszłe funkcje WordPress będą walidować i sanityzować dane wejściowe, wykonywać escaping możliwie późno oraz sprawdzać uprawnienia i nonce. Zawartość katalogu uploads nie będzie dołączana ani wykonywana jako PHP.
+Zaimplementowany scanner przyjmuje zaufaną ścieżkę katalogu z konfiguracji aplikacji, sprawdza wyłącznie bezpośrednie wpisy, odrzuca symlinki oraz nigdy nie czyta ani nie wykonuje zawartości dokumentów. Builder katalogu waliduje wyłącznie kandydatów filename zaakceptowanych przez scanner i łączy problemy scannera oraz validatora bez ujawniania ścieżek źródłowych. Finalny katalog zawiera kandydatów, którzy przeszli walidację nazwy, typu wpisu i ograniczoną walidację PDF candidate. WordPress storage odrzuca bezpośrednie symlinki i kolidujące pliki w dwóch ścieżkach zarządzanych przez plugin. Nie oznacza to skanowania malware, sanitizacji PDF, pełnej walidacji struktury PDF ani gwarancji bezpieczeństwa dokumentu i nie zastępuje zabezpieczeń serwera, antywirusa ani kontroli administratora. Strona administracyjna wykonuje escaping niezaufanych nazw wpisów, a handler odświeżania niezależnie wymaga `manage_options` i nonce WordPressa. Przyszłe funkcje WordPress zachowają te same zasady walidacji, późnego escaping, capability i nonce. Zawartość katalogu uploads nie będzie dołączana ani wykonywana jako PHP.
 
 Projekt v1.0 zakłada, że sama wtyczka nie będzie przechowywać danych pacjentów ani odpowiedzi ankiet, instalować cookies, wysyłać telemetrii ani przekazywać danych do usług zewnętrznych. Moduł ankiety będzie jedynie odnośnikiem skonfigurowanym przez administratora; wtyczka nie będzie deklarować, że zewnętrzny formularz jest anonimowy.
 
@@ -77,9 +78,17 @@ Zwykłe ładowanie pluginu nie tworzy katalogów, nie skanuje dokumentów i nie 
 
 Serwis katalogu WordPress zapisuje w cache wyłącznie poprawne obiekty `ZFDZ_Menu_Catalog_Result` na około pięć minut pod stałym, wersjonowanym kluczem transientu `zfdz_menu_catalog_v1`. Poprawny katalog może zawierać entry-level issues. Błędy katalogowe są zwracane bez cache’owania. Nieoczekiwana wartość transientu jest usuwana i traktowana jako cache miss. Programowy refresh usuwa poprzednią wartość przed ponownym zbudowaniem katalogu, a wyczyszczenie cache usuwa wyłącznie transient i nigdy nie skanuje ani nie zmienia filesystemu.
 
-Załadowanie pluginu ani utworzenie serwisu nie wykonuje operacji transientu lub filesystemu. Praca rozpoczyna się dopiero po jawnym pobraniu, odświeżeniu lub wyczyszczeniu katalogu przez konsumenta. Przycisk administracyjny do ręcznego odświeżania nadal jest planowany i nie został zaimplementowany.
+Załadowanie pluginu ani utworzenie serwisu nie wykonuje operacji transientu lub filesystemu. Praca rozpoczyna się dopiero po jawnym pobraniu, odświeżeniu lub wyczyszczeniu katalogu przez konsumenta. Zaimplementowany przycisk administracyjny wykonuje jawny, chroniony refresh; zwykłe renderowanie strony korzysta z cache przez `get_catalog()`.
 
 Pliki będzie można dostarczać przez zewnętrznie skonfigurowane, ograniczone konto SFTP. Plugin nie implementuje SFTP, a administrator serwera odpowiada za ograniczenie konta wyłącznie do katalogu dokumentów. Credentials nie mogą być przechowywane w repozytorium. Pliki dostarczone poza WordPressem stają się widoczne po wygaśnięciu krótkiego cache lub wcześniej po jawnym programowym odświeżeniu.
+
+## Strona administracyjna Status publikacji
+
+Administratorzy z capability `manage_options` mogą otworzyć **Żywienie dla Zdrowia → Status publikacji**. Strona pobiera dane wyłącznie przez `ZFDZ_WordPress_Menu_Catalog_Service`, pokazuje techniczny status modułu jadłospisów, liczbę dokumentów, okresów i problemów oraz bezpieczne polskie opisy wykrytych issues. Nie pokazuje ścieżek filesystemu ani linków do dokumentów.
+
+Ręczne odświeżanie używa klasycznego przepływu POST/Redirect/GET przez `admin-post.php`. Handler sprawdza `manage_options` i nonce WordPressa przed wywołaniem `refresh_catalog()`, a następnie przekierowuje tylko z dozwolonym statusem success albo error. Strona nie dodaje własnego CSS ani JavaScriptu.
+
+Na tym etapie status **OK** oznacza wyłącznie, że katalog jest technicznie dostępny i nie zawiera problemów scannera lub validatora. Nie oznacza istnienia aktualnego jadłospisu, publikacji wszystkich wymaganych materiałów ani zgodności organizacji z prawem.
 
 ## Development
 
@@ -92,7 +101,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF oraz pipeline zwalidowanego katalogu. WordPress-specific lifecycle storage i warstwa cache transientów są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Administracja, UI ręcznego odświeżania, shortcode’y, frontend i klasyfikacja aktualne/nadchodzące/archiwalne pozostają planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF oraz pipeline zwalidowanego katalogu. WordPress-specific lifecycle storage, warstwa cache transientów i strona administracyjna są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Publiczne shortcode’y, frontend, administracja pozostałych modułów i klasyfikacja aktualne/nadchodzące/archiwalne pozostają planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 

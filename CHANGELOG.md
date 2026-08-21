@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Native WordPress “Status publikacji” administration page with menu catalog counters and safely mapped issue descriptions.
+- Capability- and nonce-protected manual menu catalog refresh using an admin-post POST/Redirect/GET flow.
 - WordPress Transients API cache for successful menu catalogs with a fixed versioned key and an approximately five-minute lifetime.
 - WordPress menu catalog service with cache-hit reads and explicit programmatic refresh and clear operations.
 - WordPress uploads-based menu storage with activation-time, idempotent directory creation and non-destructive retention behavior.

@@ -30,6 +30,10 @@ require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-storage.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-catalog-provider.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-catalog-cache.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-catalog-service.php';
+require_once __DIR__ . '/includes/class-zfdz-wordpress-admin-status-page.php';
+require_once __DIR__ . '/includes/class-zfdz-wordpress-admin.php';
+
+ZFDZ_WordPress_Admin::register();
 
 register_activation_hook(
 	__FILE__,

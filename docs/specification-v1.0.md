@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, a Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania. Moduły publiczne, administracja, konfiguracja przez Options API i shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, a Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”. Moduły publiczne, konfiguracja przez Options API, administracja pozostałych modułów i shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -104,6 +104,30 @@ Cache katalogu jest oddzielną, WordPress-specific warstwą korzystającą z Tra
 - udostępnia `create_default()` korzystające z zaakceptowanej fabryki providera bez ponownego składania standalone pipeline.
 
 Transient przechowuje wyłącznie istniejący publiczny model katalogu bez ścieżek filesystemu, credentials lub danych pochodzących z requestu. Samo załadowanie pluginu i utworzenie serwisu nie odczytuje ani nie zapisuje transientu, nie skanuje katalogu i nie waliduje PDF. Operacje rozpoczynają się dopiero po jawnym wywołaniu metody serwisu. Etap 6 nie dodaje panelu ani przycisku ręcznego odświeżania.
+
+## Zaimplementowany zakres Etapu 7
+
+Etap 7 dodaje główną pozycję menu **Żywienie dla Zdrowia** oraz pierwszą stronę administracyjną **Status publikacji**, dostępną wyłącznie z capability `manage_options`. Rejestracja hooków `admin_menu` i `admin_post_zfdz_refresh_menu_catalog` nie pobiera katalogu ani transientu podczas ładowania pluginu.
+
+Strona statusu:
+
+- pobiera dane wyłącznie przez `ZFDZ_WordPress_Menu_Catalog_Service::get_catalog()` i nie odwołuje się bezpośrednio do storage, scannera, validatora ani Transients API;
+- klasyfikuje moduł jadłospisów jako **Błąd** dla directory failure, **Wymaga uwagi** dla successful catalog z issues albo **OK** dla successful catalog bez issues;
+- pokazuje liczbę poprawnych dokumentów, okresów i problemów z jednego wyniku katalogu;
+- mapuje aktualne kody scannera, parsera, validatora i storage na bezpieczne polskie komunikaty;
+- wykonuje escaping nazw wpisów pochodzących z filesystemu i nie pokazuje ścieżek, targetów symlinków ani URL-i dokumentów;
+- korzysta z semantycznych nagłówków, natywnej tabeli WordPress oraz tekstowych etykiet statusu bez własnego CSS i JavaScriptu.
+
+Ręczne odświeżanie:
+
+- używa formularza POST kierowanego do `admin-post.php` ze stałą akcją `zfdz_refresh_menu_catalog`;
+- niezależnie sprawdza `manage_options` oraz nonce akcji `zfdz_refresh_menu_catalog`;
+- wywołuje `ZFDZ_WordPress_Menu_Catalog_Service::refresh_catalog()` dopiero po obu kontrolach;
+- realizuje POST/Redirect/GET przez `wp_safe_redirect()` do URL zbudowanego przez `admin_url()` i `add_query_arg()`;
+- przekazuje po redirect wyłącznie status `success` albo `error`, a renderer sanityzuje go przez `wp_unslash()` i `sanitize_key()` oraz sprawdza whitelistę;
+- nie przyjmuje filename, ścieżki, URL ani nazwy modułu i nie tworzy, nie modyfikuje ani nie usuwa dokumentów.
+
+Status **OK** w Etapie 7 oznacza wyłącznie, że katalog jest technicznie dostępny i nie zawiera wykrytych problemów scannera lub validatora. Nie oznacza, że istnieje aktualny jadłospis, opublikowano wszystkie wymagane materiały ani że organizacja spełnia wymogi prawne. Panel pozostaje technicznym narzędziem diagnostycznym, a publiczny frontend nie jest częścią tego etapu.
 
 ## Cel
 
@@ -236,18 +260,16 @@ Nazwy plików zawsze będą traktowane jako niezaufane dane wejściowe. Szczegó
 - Plugin powinien działać identycznie niezależnie od tego, czy plik został dostarczony przez SFTP, czy inną bezpieczną metodę poza WordPressem.
 - Plik dostarczony poza WordPressem pojawi się w katalogu najpóźniej po wygaśnięciu około pięciominutowego cache albo wcześniej po jawnym programowym wywołaniu `refresh_catalog()`.
 
-## Planowany panel administracyjny
+## Panel administracyjny
 
-Planowana nazwa dashboardu:
+Zaimplementowana nazwa pierwszej strony:
 
 ```text
 Status publikacji
 ```
 
-Status publikacji ma docelowo pokazywać co najmniej:
+Etap 7 pokazuje dla modułu jadłospisów liczbę poprawnie rozpoznanych dokumentów, okresów i problemów oraz umożliwia chronione ręczne odświeżenie katalogu. Docelowo rozbudowany Status publikacji ma dodatkowo pokazywać co najmniej:
 
-- liczbę poprawnie rozpoznanych jadłospisów;
-- nierozpoznane pliki;
 - najnowszy wynik badania;
 - stan powiązania badania z jadłospisem;
 - liczbę materiałów edukacyjnych;
@@ -276,7 +298,7 @@ Architektura ma pozostać możliwie prosta. Nowe warstwy i abstrakcje powinny po
 - Zaimplementowany cache korzysta z WordPress Transients API i stałego klucza `zfdz_menu_catalog_v1`.
 - Successful `ZFDZ_Menu_Catalog_Result` jest przechowywany domyślnie przez około 5 minut; directory failures nie są cache’owane.
 - `refresh_catalog()` programowo wymusza świeży odczyt, a `clear_cache()` wyłącznie usuwa transient.
-- Przyszły panel administratora ma udostępnić kontrolkę ręcznego odświeżania; Etap 6 nie implementuje tego UI.
+- Zaimplementowana w Etapie 7 kontrolka administratora wywołuje `refresh_catalog()` wyłącznie przez chroniony POST.
 - Podstawowa implementacja nie wymaga filesystem watcherów, daemonów, cronów ani własnej kolejki.
 
 ## Planowana integracja ze stroną WordPress
