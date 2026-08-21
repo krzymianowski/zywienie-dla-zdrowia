@@ -6,11 +6,13 @@
  */
 
 /**
- * Registers and renders the public menu document shortcode.
+ * Registers and renders the public menu document shortcodes.
  */
 final class ZFDZ_WordPress_Menu_Shortcode {
 
 	public const SHORTCODE_TAG = 'zfdz_jadlospisy';
+
+	public const ARCHIVE_SHORTCODE_TAG = 'zfdz_jadlospisy_archiwum';
 
 	/**
 	 * Registers the WordPress hook that installs the shortcode callback.
@@ -28,6 +30,7 @@ final class ZFDZ_WordPress_Menu_Shortcode {
 	 */
 	public static function register_shortcode(): void {
 		add_shortcode( self::SHORTCODE_TAG, array( self::class, 'render' ) );
+		add_shortcode( self::ARCHIVE_SHORTCODE_TAG, array( self::class, 'render_archive' ) );
 	}
 
 	/**
@@ -76,6 +79,55 @@ final class ZFDZ_WordPress_Menu_Shortcode {
 				__( 'Nadchodzące jadłospisy', 'zywienie-dla-zdrowia' ),
 				$upcoming_groups,
 				__( 'Brak nadchodzących jadłospisów.', 'zywienie-dla-zdrowia' ),
+				$menu_directory_url,
+				$date_format,
+				$timezone
+			);
+			?>
+		</div>
+		<?php
+		$markup = ob_get_clean();
+
+		return false === $markup ? '' : $markup;
+	}
+
+	/**
+	 * Returns the public archived menu markup.
+	 *
+	 * @return string
+	 */
+	public static function render_archive(): string {
+		$catalog = ZFDZ_WordPress_Menu_Catalog_Service::create_default()->get_catalog();
+
+		if ( ! $catalog->is_successful() ) {
+			return self::get_unavailable_markup();
+		}
+
+		$menu_directory_url = ( new ZFDZ_WordPress_Menu_Storage() )->get_menu_directory_url();
+
+		if ( is_wp_error( $menu_directory_url ) ) {
+			return self::get_unavailable_markup();
+		}
+
+		$current_datetime = current_datetime();
+		$current_date     = $current_datetime->format( 'Y-m-d' );
+		$classification   = ( new ZFDZ_Menu_Period_Classifier() )->classify( $catalog->get_groups(), $current_date );
+		$archived_groups  = $classification->get_archived_groups();
+		$date_format      = get_option( 'date_format' );
+		$timezone         = wp_timezone();
+
+		if ( ! is_string( $date_format ) || '' === trim( $date_format ) ) {
+			$date_format = 'Y-m-d';
+		}
+
+		ob_start();
+		?>
+		<div class="zfdz-menu zfdz-menu-archive">
+			<?php
+			self::render_section(
+				__( 'Archiwum jadłospisów', 'zywienie-dla-zdrowia' ),
+				$archived_groups,
+				__( 'Brak archiwalnych jadłospisów.', 'zywienie-dla-zdrowia' ),
 				$menu_directory_url,
 				$date_format,
 				$timezone

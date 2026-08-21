@@ -12,7 +12,7 @@ Development-stage tooling for publishing information related to a “Żywienie d
 
 The minimum supported environment is WordPress 6.8 and PHP 8.2. PHP 8.3 or later is recommended.
 
-Version 0.1.0 contains a standalone validated menu catalog pipeline, a deterministic current/upcoming/archive period classifier, and their first WordPress integration. During activation, the plugin resolves the current uploads base directory through WordPress API and idempotently creates `zywienie-dla-zdrowia/jadlospisy/`. A WordPress catalog provider connects that directory to the standalone pipeline only when explicitly requested. A catalog service caches successful results for approximately five minutes. The technical “Status publikacji” administration page displays catalog counters and issues, classifies periods against the current WordPress site date, reports whether a menu period applies today, and provides a capability- and nonce-protected manual refresh. The parameter-free `[zfdz_jadlospisy]` shortcode publicly renders grouped current and upcoming validated PDF candidates using WordPress uploads URLs. Classification is calculated after catalog cache access and is not stored in the transient. Deactivation does not delete documents. Public archives and the remaining modules are not implemented, and this version is not presented as a stable release.
+Version 0.1.0 contains a standalone validated menu catalog pipeline, a deterministic current/upcoming/archive period classifier, and their first WordPress integration. During activation, the plugin resolves the current uploads base directory through WordPress API and idempotently creates `zywienie-dla-zdrowia/jadlospisy/`. A WordPress catalog provider connects that directory to the standalone pipeline only when explicitly requested. A catalog service caches successful results for approximately five minutes. The technical “Status publikacji” administration page displays catalog counters and issues, classifies periods against the current WordPress site date, reports whether a menu period applies today, and provides a capability- and nonce-protected manual refresh. The parameter-free `[zfdz_jadlospisy]` shortcode publicly renders grouped current and upcoming validated PDF candidates, while `[zfdz_jadlospisy_archiwum]` renders grouped archived periods newest first. Both use WordPress uploads URLs and the same cached catalog. Classification is calculated after catalog cache access and is not stored in the transient. Deactivation does not delete documents. The remaining modules are not implemented, and this version is not presented as a stable release.
 
 The catalog keeps only scanner-approved documents that pass limited PDF candidate validation and combines scanner and validation issues. These checks do not provide malware scanning, PDF sanitization, full PDF structure validation, or a guarantee of document safety.
 
@@ -20,17 +20,17 @@ The plugin is a technical publishing tool, not legal advice. It does not guarant
 
 == Installation ==
 
-This development version provides a technical administration status page and the first public menu shortcode. For development, place the repository in the WordPress plugins directory and install development dependencies with Composer. Do not use it as a substitute for a production-ready release.
+This development version provides a technical administration status page and public current/upcoming and archive menu shortcodes. For development, place the repository in the WordPress plugins directory and install development dependencies with Composer. Do not use it as a substitute for a production-ready release.
 
 == Frequently Asked Questions ==
 
 = Does this version display documents or provide shortcodes? =
 
-The parameter-free `[zfdz_jadlospisy]` shortcode displays grouped current and upcoming validated menu candidates. Public archives, `[zywienie_dla_zdrowia]`, and the remaining module shortcodes are still planned.
+The parameter-free `[zfdz_jadlospisy]` shortcode displays grouped current and upcoming validated menu candidates. The separate parameter-free `[zfdz_jadlospisy_archiwum]` shortcode displays grouped archived periods newest first. `[zywienie_dla_zdrowia]` and the remaining module shortcodes are still planned.
 
-= Are archived documents private because the shortcode does not show them? =
+= Are archived documents private because they use a separate shortcode? =
 
-No. The shortcode does not generate archived-document links, but a file in public WordPress uploads may remain accessible through its direct URL. This version does not implement access control or private storage.
+No. Separating current/upcoming and archived links is presentation behavior only. A file in public WordPress uploads may remain accessible through its direct URL whether or not either shortcode currently links it. This version does not implement access control or private storage.
 
 = Does the plugin store survey responses or patient data? =
 
@@ -53,4 +53,5 @@ No. The privacy properties of an external form are outside the plugin's control 
 * Added a WordPress Transients API cache and menu catalog service with programmatic refresh and clear operations.
 * Added a technical “Status publikacji” administration page with WordPress-site-date period counters, a current-menu notice, and protected manual catalog refresh.
 * Added the public `[zfdz_jadlospisy]` shortcode for grouped current and upcoming menu links using the WordPress uploads base URL.
+* Added the public `[zfdz_jadlospisy_archiwum]` shortcode for grouped archived menu links ordered from newest to oldest.
 * Added the initial plugin bootstrap, project documentation, and development quality tooling.

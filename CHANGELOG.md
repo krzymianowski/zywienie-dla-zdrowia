@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Public parameter-free `[zfdz_jadlospisy_archiwum]` shortcode rendering grouped archived menu periods from newest to oldest through the existing validated catalog pipeline.
 - Public parameter-free `[zfdz_jadlospisy]` shortcode rendering grouped current and upcoming validated menu documents without exposing catalog issues or filesystem paths.
 - WordPress uploads `baseurl` resolution for encoded public menu document links and localized period labels.
 - Standalone immutable menu-period classification result and deterministic classifier for current, upcoming, and archived groups.

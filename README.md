@@ -4,7 +4,7 @@
 
 The repository is generic and is not tied to any particular organization or deployment.
 
-> **Development status:** version `0.1.0` is an early development version. The standalone menu pipeline and period classifier, WordPress uploads integration, transient-backed catalog service, technical administration page, and first public menu shortcode are implemented. Public archives and the remaining modules are still planned. This version is not production-ready.
+> **Development status:** version `0.1.0` is an early development version. The standalone menu pipeline and period classifier, WordPress uploads integration, transient-backed catalog service, technical administration page, and public current/upcoming and archive menu shortcodes are implemented. The remaining modules are still planned. This version is not production-ready.
 
 ## Status
 
@@ -20,6 +20,7 @@ The repository is generic and is not tied to any particular organization or depl
 - A WordPress Transients API cache with an approximately five-minute lifetime and a catalog service providing cached reads plus programmatic refresh and clear operations.
 - A native WordPress “Status publikacji” administration page with technical catalog status, current/upcoming/archived period counts based on the WordPress site date, safe issue descriptions, and a capability- and nonce-protected manual refresh using POST/Redirect/GET.
 - The parameter-free `[zfdz_jadlospisy]` shortcode, which groups validated PDF candidates by exact period and renders current and upcoming menu links using the WordPress uploads base URL.
+- The parameter-free `[zfdz_jadlospisy_archiwum]` shortcode, which renders archived menu periods newest first while preserving exact-period grouping.
 - PHPUnit tests for the filename parser, filesystem scanner, PDF candidate validator, validated catalog pipeline, and period classifier without loading WordPress.
 - Development-only Composer tooling for PHP_CodeSniffer and WordPress Coding Standards.
 - Initial project, security, contribution, and product-specification documentation.
@@ -33,7 +34,7 @@ The repository is generic and is not tied to any particular organization or depl
 - A configurable link to an external feedback form or survey.
 - Any additional server-side, malware-detection, or document-sanitization controls required by a deployment.
 - Configuration through the WordPress Options API.
-- A public menu archive, the aggregate `[zywienie_dla_zdrowia]` shortcode, remaining module shortcodes, an expanded administration dashboard, and optional frontend styling.
+- The aggregate `[zywienie_dla_zdrowia]` shortcode, remaining module shortcodes, an expanded administration dashboard, and optional frontend styling.
 - Shortcodes listed in the [working v1.0 specification](docs/specification-v1.0.md).
 
 ### Out of scope for v1.0
@@ -96,9 +97,9 @@ At this stage, technical status **OK** means only that the catalog is technicall
 
 Period classification is calculated after the catalog is read from cache and is not stored in the transient. Consequently, a change of the WordPress site date immediately affects classification during the next page render without invalidating the cached catalog.
 
-## Public menu shortcode
+## Public menu shortcodes
 
-Place the parameter-free shortcode on a WordPress page:
+Place the parameter-free current/upcoming shortcode on a WordPress page:
 
 ```text
 [zfdz_jadlospisy]
@@ -106,11 +107,19 @@ Place the parameter-free shortcode on a WordPress page:
 
 It reads the existing cached validated catalog, classifies groups against the current WordPress site date, and renders **Aktualne jadłospisy** followed by **Nadchodzące jadłospisy**. Documents sharing an exact date range remain grouped under one period heading. Upcoming periods are displayed nearest first. Empty sections remain visible with a clear message, while a technical catalog or uploads-URL failure produces a short public unavailable message without diagnostic details.
 
-Links are generated from the `baseurl` returned by `wp_get_upload_dir()` and a `rawurlencode()`-encoded original filename. The visible label uses the parsed document name. Entry-level issues and their filenames are never rendered, and valid documents remain available when the catalog also contains issues. Archived periods are not linked by `[zfdz_jadlospisy]` at this stage.
+Place the separate parameter-free archive shortcode on an archive page:
 
-Omitting archived documents is not access control. A file stored in public WordPress uploads may remain reachable through its direct URL if that URL is known. This stage does not add private storage, download proxying, URL blocking, or web-server rules. Linked files are validated PDF candidates only; the existing checks do not provide malware scanning, sanitization, full PDF parsing, or a safety guarantee.
+```text
+[zfdz_jadlospisy_archiwum]
+```
 
-The shortcode uses `get_catalog()` and never forces a refresh. Files delivered outside WordPress become visible when the approximately five-minute cache expires or after an administrator uses the protected manual refresh. Period classification uses a fresh WordPress site date on every render and is not cached.
+It renders only archived periods (`end_date < today`) under **Archiwum jadłospisów**, newest first. Documents from the same exact period remain grouped, and an empty archive remains visible with the message **Brak archiwalnych jadłospisów.** The existing `[zfdz_jadlospisy]` shortcode continues to render only current and upcoming periods.
+
+Links in both shortcodes are generated from the `baseurl` returned by `wp_get_upload_dir()` and a `rawurlencode()`-encoded original filename. The visible label uses the parsed document name. Entry-level issues and their filenames are never rendered, and valid documents remain available when the catalog also contains issues. Archived periods are linked only by `[zfdz_jadlospisy_archiwum]`, not by `[zfdz_jadlospisy]`.
+
+Separating archived documents into their own shortcode is presentation behavior, not access control. A file stored in public WordPress uploads may remain reachable through its direct URL if that URL is known, regardless of whether either shortcode currently links it. This stage does not add private storage, download proxying, URL blocking, or web-server rules. Linked files are validated PDF candidates only; the existing checks do not provide malware scanning, sanitization, full PDF parsing, or a safety guarantee.
+
+Both shortcodes use `get_catalog()` and never force a refresh. Files delivered outside WordPress become visible when the approximately five-minute cache expires or after an administrator uses the protected manual refresh. Period classification uses a fresh WordPress site date on every render and is not cached.
 
 ## Development
 
@@ -123,7 +132,7 @@ composer lint
 composer test
 ```
 
-There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, and current/upcoming/archive period classifier. The WordPress-specific storage lifecycle, transient cache layer, administration page, and public shortcode are covered by lint and PHPCS at this stage and require manual smoke tests after review. The aggregate shortcode, public archive, remaining module frontend, expanded administration, and configuration are still planned.
+There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, and current/upcoming/archive period classifier. The WordPress-specific storage lifecycle, transient cache layer, administration page, and public shortcodes are covered by lint and PHPCS at this stage and require manual smoke tests after review. The aggregate shortcode, remaining module frontend, expanded administration, and configuration are still planned.
 
 Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md) and the repository instructions in [AGENTS.md](AGENTS.md).
 

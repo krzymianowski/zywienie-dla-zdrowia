@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, a Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów. Publiczne archiwum, konfiguracja przez Options API, administracja pozostałych modułów i ich shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, a Etap 10 — osobny publiczny shortcode archiwalnych okresów. Konfiguracja przez Options API, administracja pozostałych modułów i ich shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -168,6 +168,23 @@ Shortcode renderuje wyłącznie validated PDF candidates, ale nie określa ich j
 
 Shortcode konsumuje cached catalog, a klasyfikację wykonuje względem świeżej daty witryny przy każdym renderowaniu. Plik dostarczony poza WordPressem może pojawić się po wygaśnięciu około pięciominutowego cache lub wcześniej po ręcznym odświeżeniu w panelu. Klucz `zfdz_menu_catalog_v1`, format transientu i kontrakty standalone pipeline pozostają bez zmian.
 
+## Zaimplementowany zakres Etapu 10
+
+Etap 10 rozszerza istniejącą klasę `ZFDZ_WordPress_Menu_Shortcode` o drugi bezparametrowy shortcode `[zfdz_jadlospisy_archiwum]`. Ten sam callback hooka `init` rejestruje oba tagi; sama rejestracja nadal nie pobiera katalogu, transientu, URL uploads ani bieżącej daty.
+
+Renderer archiwum:
+
+- pobiera katalog wyłącznie przez `ZFDZ_WordPress_Menu_Catalog_Service::get_catalog()` i nie wykonuje automatycznego `refresh_catalog()`;
+- dla successful catalog pobiera `current_datetime()` dokładnie raz, przekazuje datę `YYYY-MM-DD` do istniejącego classifiera i renderuje wyłącznie `get_archived_groups()`;
+- zachowuje malejącą kolejność katalogu, dlatego pokazuje najnowszy archiwalny okres przed starszymi bez `array_reverse()` i bez zmiany classifiera;
+- wykorzystuje te same helpery grupowania, formatowania dat, budowania URL-i, escaping i bezpiecznego komunikatu niedostępności co `[zfdz_jadlospisy]`;
+- pokazuje sekcję **Archiwum jadłospisów** także wtedy, gdy jest pusta, z komunikatem **Brak archiwalnych jadłospisów.**;
+- nie renderuje grup current/upcoming, entry-level issues, nazw błędnych wpisów ani metadata technicznych.
+
+Istniejący `[zfdz_jadlospisy]` zachowuje dotychczasowe zachowanie i nadal pokazuje wyłącznie okresy aktualne oraz nadchodzące. Oba shortcode’y używają tego samego cached catalog, klucza `zfdz_menu_catalog_v1`, katalogu uploads oraz reguł linkowania filename przez `rawurlencode()` i późny escaping. Etap 10 nie tworzy katalogu `archive/` ani `archiwum/`, nie przenosi, nie kopiuje, nie zmienia nazw i nie usuwa dokumentów, nie dodaje osobnego transientu, atrybutów shortcode, paginacji, filtrowania, CSS ani JavaScriptu.
+
+Rozdzielenie okresów między dwa publiczne widoki jest wyłącznie sposobem prezentacji, a nie kontrolą dostępu. PDF znajdujący się w publicznym WordPress uploads może pozostać dostępny przez znany bezpośredni URL niezależnie od tego, czy aktualnie linkuje go którykolwiek shortcode. Implementacja nie dodaje private storage, proxy pobierania ani reguł serwera WWW.
+
 ## Cel
 
 Żywienie dla Zdrowia będzie wtyczką WordPress wspierającą prowadzenie publicznej sekcji:
@@ -228,7 +245,7 @@ Standalone scanner Etapu 2 i pipeline katalogu Etapu 4 nadal nie znają WordPres
 
 WordPress-specific serwis Etapu 6 korzysta z providera i cache transientów. Nie zmienia publicznego modelu katalogu ani kontraktów standalone pipeline.
 
-Publiczny shortcode Etapu 9 pobiera URL katalogu osobno z uploads `baseurl`. Nie przekształca ścieżki `basedir` na URL i nie umieszcza ścieżek filesystemu w HTML.
+Publiczne shortcode’y Etapów 9–10 pobierają URL katalogu osobno z uploads `baseurl`. Nie przekształcają ścieżki `basedir` na URL i nie umieszczają ścieżek filesystemu w HTML.
 
 ### Planowana konwencja nazw jadłospisów
 
@@ -342,7 +359,7 @@ Architektura ma pozostać możliwie prosta. Nowe warstwy i abstrakcje powinny po
 - `refresh_catalog()` programowo wymusza świeży odczyt, a `clear_cache()` wyłącznie usuwa transient.
 - Zaimplementowana w Etapie 7 kontrolka administratora wywołuje `refresh_catalog()` wyłącznie przez chroniony POST.
 - Klasyfikacja okresów Etapu 8 jest obliczana po odczycie katalogu, nie trafia do transientu i dlatego zmiana bieżącej daty nie wymaga invalidacji cache.
-- Shortcode Etapu 9 korzysta wyłącznie z `get_catalog()`; nie wymusza refresh i pokazuje nowe pliki po wygaśnięciu cache lub po ręcznym odświeżeniu administratora.
+- Shortcode’y Etapów 9–10 korzystają wyłącznie z `get_catalog()`; nie wymuszają refresh i pokazują nowe pliki po wygaśnięciu cache lub po ręcznym odświeżeniu administratora.
 - Podstawowa implementacja nie wymaga filesystem watcherów, daemonów, cronów ani własnej kolejki.
 
 ## Integracja ze stroną WordPress
@@ -351,13 +368,14 @@ Architektura ma pozostać możliwie prosta. Nowe warstwy i abstrakcje powinny po
 - Administrator sam umieszcza odpowiedni shortcode na wybranej stronie.
 - Rozwiązanie powinno pozostać możliwie niezależne od Gutenberga, Elementora, WPBakery i konkretnego motywu.
 
-Zaimplementowany shortcode:
+Zaimplementowane shortcode’y:
 
 ```text
 [zfdz_jadlospisy]
+[zfdz_jadlospisy_archiwum]
 ```
 
-Nie przyjmuje parametrów, pokazuje aktualne i nadchodzące grupy jadłospisów oraz nie generuje publicznego archiwum. Korzysta z cached catalog i z ręcznego odświeżania dostępnego w panelu administratora.
+Nie przyjmują parametrów. `[zfdz_jadlospisy]` pokazuje aktualne i nadchodzące grupy jadłospisów, natomiast `[zfdz_jadlospisy_archiwum]` pokazuje wyłącznie archiwalne grupy od najnowszej do starszych. Oba korzystają z tego samego cached catalog i z ręcznego odświeżania dostępnego w panelu administratora.
 
 Pozostałe planowane shortcode’y:
 
