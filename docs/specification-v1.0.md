@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, a Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”. Moduły publiczne, konfiguracja przez Options API, administracja pozostałych modułów i shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, a Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu. Moduły publiczne, konfiguracja przez Options API, administracja pozostałych modułów i shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -129,6 +129,24 @@ Ręczne odświeżanie:
 
 Status **OK** w Etapie 7 oznacza wyłącznie, że katalog jest technicznie dostępny i nie zawiera wykrytych problemów scannera lub validatora. Nie oznacza, że istnieje aktualny jadłospis, opublikowano wszystkie wymagane materiały ani że organizacja spełnia wymogi prawne. Panel pozostaje technicznym narzędziem diagnostycznym, a publiczny frontend nie jest częścią tego etapu.
 
+## Zaimplementowany zakres Etapu 8
+
+Standalone `ZFDZ_Menu_Period_Classifier` przyjmuje istniejące grupy `ZFDZ_Menu_Period_Group` oraz jawnie przekazaną datę odniesienia `today` w formacie `YYYY-MM-DD`. Nie korzysta z WordPress API, systemowego zegara, `date()`, locale ani metadata filesystemu. Defensywnie sprawdza format i rzeczywistą wartość kalendarzową daty odniesienia, a naruszenie tego programistycznego kontraktu zgłasza przez `InvalidArgumentException`.
+
+Classifier tworzy niezmienny `ZFDZ_Menu_Period_Classification` zgodnie z regułami:
+
+- **current**: `start_date <= today <= end_date`;
+- **upcoming**: `start_date > today`;
+- **archived**: `end_date < today`.
+
+Granice okresu są inkluzywne. Każda prawidłowa grupa trafia dokładnie do jednej kategorii; kilka nakładających się grup może być jednocześnie aktualnych. Classifier zachowuje kolejność wejściową wewnątrz każdej kategorii, nie sortuje ponownie, nie zmienia grup i nie filtruje należących do nich dokumentów.
+
+Integracja WordPress pobiera bieżący czas witryny przez `current_datetime()` dokładnie raz podczas renderowania poprawnego katalogu i przekazuje datę `YYYY-MM-DD` do standalone classifiera. Przy directory-level failure klasyfikacja nie jest wykonywana. Panel pokazuje datę odniesienia, liczby aktualnych, nadchodzących i archiwalnych okresów oraz osobną tekstową informację o obecności lub braku okresu obowiązującego dzisiaj.
+
+Dotychczasowy status techniczny **OK / Wymaga uwagi / Błąd** zachowuje semantykę Etapu 7. Brak aktualnego okresu nie jest directory error ani błędem technicznym i nie zmienia statusu **OK** dla poprawnego katalogu bez issues. Informacja ta nie stanowi automatycznej oceny realizacji obowiązków prawnych.
+
+Klasyfikacja jest wykonywana po pobraniu cached `ZFDZ_Menu_Catalog_Result`, nie jest zapisywana w transientach i nie zmienia klucza `zfdz_menu_catalog_v1`. Zmiana dnia w strefie czasu witryny WordPress nie wymaga odświeżenia ani invalidacji katalogu. Etap 8 nie dodaje nowych request inputs, formularzy, nonce, capabilities, URL-i dokumentów, zapisów do bazy, transientów, CSS ani JavaScriptu.
+
 ## Cel
 
 Żywienie dla Zdrowia będzie wtyczką WordPress wspierającą prowadzenie publicznej sekcji:
@@ -207,9 +225,10 @@ Zaimplementowane parser i scanner Etapów 1–2:
 
 Pipeline Etapu 4 dodatkowo odrzuca z finalnego katalogu kandydatów, którzy nie przeszli ograniczonej walidacji PDF, filtruje ich grupy okresów oraz zachowuje scanner issues razem z validation issues.
 
+Classifier Etapu 8 dzieli wynikowe grupy na aktualne, nadchodzące i archiwalne według jawnie przekazanej daty, zachowując kolejność katalogu. W integracji WordPress datą odniesienia jest bieżąca data witryny zwrócona przez `current_datetime()`.
+
 Nadal planowane są:
 
-- klasyfikacja okresu jako aktualnego, nadchodzącego lub archiwalnego z użyciem czasu WordPressa;
 - integracja zapewniająca, że dokumenty nie są automatycznie usuwane;
 - bezpieczne pomijanie nierozpoznanych nazw na publicznym frontendzie;
 - informowanie administratora o nierozpoznanych dokumentach bez powodowania błędu frontendu.
@@ -268,14 +287,14 @@ Zaimplementowana nazwa pierwszej strony:
 Status publikacji
 ```
 
-Etap 7 pokazuje dla modułu jadłospisów liczbę poprawnie rozpoznanych dokumentów, okresów i problemów oraz umożliwia chronione ręczne odświeżenie katalogu. Docelowo rozbudowany Status publikacji ma dodatkowo pokazywać co najmniej:
+Etap 7 pokazuje dla modułu jadłospisów liczbę poprawnie rozpoznanych dokumentów, okresów i problemów oraz umożliwia chronione ręczne odświeżenie katalogu. Etap 8 uzupełnia stronę o datę odniesienia z czasu witryny WordPress, liczby aktualnych, nadchodzących i archiwalnych okresów oraz informację, czy istnieje co najmniej jeden okres obowiązujący dzisiaj. Listy okresów i dokumentów pozostają planowane. Docelowo rozbudowany Status publikacji ma dodatkowo pokazywać co najmniej:
 
 - najnowszy wynik badania;
 - stan powiązania badania z jadłospisem;
 - liczbę materiałów edukacyjnych;
 - stan konfiguracji ankiety.
 
-Status ma przedstawiać wyłącznie informacje techniczne i nie jest oceną zgodności z prawem.
+Status techniczny ma przedstawiać wyłącznie dostępność katalogu i wykryte problemy scannera lub validatora. Osobna informacja o braku okresu obowiązującego dzisiaj nie oznacza automatycznie błędu pluginu, błędu serwera ani naruszenia prawa. Panel nie jest oceną zgodności z prawem.
 
 ## Planowana architektura
 
@@ -299,6 +318,7 @@ Architektura ma pozostać możliwie prosta. Nowe warstwy i abstrakcje powinny po
 - Successful `ZFDZ_Menu_Catalog_Result` jest przechowywany domyślnie przez około 5 minut; directory failures nie są cache’owane.
 - `refresh_catalog()` programowo wymusza świeży odczyt, a `clear_cache()` wyłącznie usuwa transient.
 - Zaimplementowana w Etapie 7 kontrolka administratora wywołuje `refresh_catalog()` wyłącznie przez chroniony POST.
+- Klasyfikacja okresów Etapu 8 jest obliczana po odczycie katalogu, nie trafia do transientu i dlatego zmiana bieżącej daty nie wymaga invalidacji cache.
 - Podstawowa implementacja nie wymaga filesystem watcherów, daemonów, cronów ani własnej kolejki.
 
 ## Planowana integracja ze stroną WordPress

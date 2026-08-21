@@ -4,7 +4,7 @@
 
 The repository is generic and is not tied to any particular organization or deployment.
 
-> **Development status:** version `0.1.0` is an early development version. The standalone menu pipeline, WordPress uploads integration, transient-backed catalog service, and first technical administration page are implemented, but public and remaining module features are still planned. This version is not production-ready.
+> **Development status:** version `0.1.0` is an early development version. The standalone menu pipeline and period classifier, WordPress uploads integration, transient-backed catalog service, and first technical administration page are implemented, but public and remaining module features are still planned. This version is not production-ready.
 
 ## Status
 
@@ -15,10 +15,11 @@ The repository is generic and is not tied to any particular organization or depl
 - A standalone, non-recursive menu directory scanner that rejects symlinks, reports unrecognized entries, sorts documents by filename dates, and groups exact periods deterministically.
 - A standalone PDF candidate validator with symlink, regular-file, readability, optional MIME, header, and bounded EOF checks.
 - A standalone validated menu catalog builder that keeps only scanner-approved documents that pass limited PDF candidate validation, filters their period groups, and combines deterministic issues.
+- A standalone, deterministic period classifier that divides validated menu groups into current, upcoming, and archived collections for an explicitly supplied calendar date.
 - WordPress uploads path resolution, activation-time creation of `zywienie-dla-zdrowia/jadlospisy/`, and a catalog provider connecting that directory to the standalone pipeline.
 - A WordPress Transients API cache with an approximately five-minute lifetime and a catalog service providing cached reads plus programmatic refresh and clear operations.
-- A native WordPress “Status publikacji” administration page with menu catalog counters, safe issue descriptions, and a capability- and nonce-protected manual refresh using POST/Redirect/GET.
-- PHPUnit tests for the filename parser, filesystem scanner, PDF candidate validator, and validated catalog pipeline without loading WordPress.
+- A native WordPress “Status publikacji” administration page with technical catalog status, current/upcoming/archived period counts based on the WordPress site date, safe issue descriptions, and a capability- and nonce-protected manual refresh using POST/Redirect/GET.
+- PHPUnit tests for the filename parser, filesystem scanner, PDF candidate validator, validated catalog pipeline, and period classifier without loading WordPress.
 - Development-only Composer tooling for PHP_CodeSniffer and WordPress Coding Standards.
 - Initial project, security, contribution, and product-specification documentation.
 - A CI workflow for Composer validation, PHP syntax checking, PHPCS, and PHPUnit.
@@ -31,7 +32,7 @@ The repository is generic and is not tied to any particular organization or depl
 - A configurable link to an external feedback form or survey.
 - Any additional server-side, malware-detection, or document-sanitization controls required by a deployment.
 - Configuration through the WordPress Options API.
-- An expanded administration dashboard for the remaining modules, shortcodes, and public frontend.
+- Lists of current, upcoming, and archived documents; an expanded administration dashboard for the remaining modules; shortcodes; and a public frontend.
 - Shortcodes listed in the [working v1.0 specification](docs/specification-v1.0.md).
 
 ### Out of scope for v1.0
@@ -86,9 +87,13 @@ Files may later be delivered by an externally configured restricted SFTP account
 
 Administrators with the `manage_options` capability can open **Żywienie dla Zdrowia → Status publikacji**. The page obtains its data only through `ZFDZ_WordPress_Menu_Catalog_Service`, displays the technical menu-module status, document/period/issue counts, and safe Polish descriptions of detected issues. It does not display filesystem paths or document links.
 
+For a successful catalog, the page obtains the reference date once from WordPress `current_datetime()` and classifies existing period groups as current (`start_date <= today <= end_date`), upcoming (`start_date > today`), or archived (`end_date < today`). The boundaries are inclusive. The page displays the reference date, the three period counts, and a separate notice stating whether at least one menu period applies today. It does not yet display period or document lists.
+
 Manual refresh is a classic POST/Redirect/GET flow through `admin-post.php`. The handler checks `manage_options` and a WordPress nonce before calling `refresh_catalog()`, then redirects with only a whitelisted success or error status. The page has no custom CSS or JavaScript.
 
-At this stage, **OK** means only that the catalog is technically accessible and contains no scanner or validator issues. It does not mean that a current menu exists, that all required materials have been published, or that the organization complies with legal requirements.
+At this stage, technical status **OK** means only that the catalog is technically accessible and contains no scanner or validator issues. A missing current period is reported separately and does not turn the technical status into an error. Neither status means that all required materials have been published or that the organization complies with legal requirements.
+
+Period classification is calculated after the catalog is read from cache and is not stored in the transient. Consequently, a change of the WordPress site date immediately affects classification during the next page render without invalidating the cached catalog.
 
 ## Development
 
@@ -101,7 +106,7 @@ composer lint
 composer test
 ```
 
-There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, and validated catalog pipeline. The WordPress-specific storage lifecycle, transient cache layer, and administration page are covered by lint and PHPCS at this stage and require manual smoke tests after review. Public shortcodes, frontend rendering, expanded module administration, and current/upcoming/archive classification remain planned.
+There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, and current/upcoming/archive period classifier. The WordPress-specific storage lifecycle, transient cache layer, and administration page are covered by lint and PHPCS at this stage and require manual smoke tests after review. Public shortcodes, frontend rendering, period/document lists, expanded module administration, and remaining configuration are still planned.
 
 Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md) and the repository instructions in [AGENTS.md](AGENTS.md).
 

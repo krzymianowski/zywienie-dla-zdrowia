@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Standalone immutable menu-period classification result and deterministic classifier for current, upcoming, and archived groups.
+- WordPress-site-date period counters and a separate current-menu notice on the technical “Status publikacji” administration page.
 - Native WordPress “Status publikacji” administration page with menu catalog counters and safely mapped issue descriptions.
 - Capability- and nonce-protected manual menu catalog refresh using an admin-post POST/Redirect/GET flow.
 - WordPress Transients API cache for successful menu catalogs with a fixed versioned key and an approximately five-minute lifetime.

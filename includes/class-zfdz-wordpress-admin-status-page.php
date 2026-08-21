@@ -25,6 +25,14 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 		$group_count    = count( $catalog->get_groups() );
 		$issue_count    = count( $catalog->get_issues() );
 		$status         = self::get_status( $catalog, $issue_count );
+		$classification = null;
+		$current_date   = '';
+
+		if ( $catalog->is_successful() ) {
+			$current_datetime = current_datetime();
+			$current_date     = $current_datetime->format( 'Y-m-d' );
+			$classification   = ( new ZFDZ_Menu_Period_Classifier() )->classify( $catalog->get_groups(), $current_date );
+		}
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Żywienie dla Zdrowia', 'zywienie-dla-zdrowia' ); ?></h1>
@@ -36,7 +44,7 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 			<h2><?php esc_html_e( 'Jadłospisy', 'zywienie-dla-zdrowia' ); ?></h2>
 			<div class="notice <?php echo esc_attr( $status['notice_class'] ); ?> inline">
 				<p>
-					<strong><?php esc_html_e( 'Status:', 'zywienie-dla-zdrowia' ); ?></strong>
+					<strong><?php esc_html_e( 'Status techniczny:', 'zywienie-dla-zdrowia' ); ?></strong>
 					<?php echo esc_html( $status['label'] ); ?>
 				</p>
 			</div>
@@ -60,6 +68,10 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 				</li>
 			</ul>
 
+			<?php if ( $classification instanceof ZFDZ_Menu_Period_Classification ) : ?>
+				<?php self::render_period_classification( $classification, $current_date ); ?>
+			<?php endif; ?>
+
 			<?php self::render_issues( $catalog->get_issues() ); ?>
 
 			<h2><?php esc_html_e( 'Odświeżenie katalogu', 'zywienie-dla-zdrowia' ); ?></h2>
@@ -70,6 +82,51 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 				<?php submit_button( __( 'Odśwież', 'zywienie-dla-zdrowia' ), 'secondary' ); ?>
 			</form>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Renders period counts classified against the current WordPress site date.
+	 *
+	 * @param ZFDZ_Menu_Period_Classification $classification Classified period groups.
+	 * @param string                          $current_date   Current WordPress site date.
+	 * @return void
+	 */
+	private static function render_period_classification( ZFDZ_Menu_Period_Classification $classification, string $current_date ): void {
+		$current_count  = count( $classification->get_current_groups() );
+		$upcoming_count = count( $classification->get_upcoming_groups() );
+		$archived_count = count( $classification->get_archived_groups() );
+		?>
+		<h2><?php esc_html_e( 'Okresy jadłospisów', 'zywienie-dla-zdrowia' ); ?></h2>
+		<p>
+			<strong><?php esc_html_e( 'Data odniesienia:', 'zywienie-dla-zdrowia' ); ?></strong>
+			<?php echo esc_html( $current_date ); ?>
+			<?php esc_html_e( '(według strefy czasu skonfigurowanej w WordPressie)', 'zywienie-dla-zdrowia' ); ?>
+		</p>
+		<ul>
+			<li>
+				<strong><?php esc_html_e( 'Aktualne okresy:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( (string) $current_count ); ?>
+			</li>
+			<li>
+				<strong><?php esc_html_e( 'Nadchodzące okresy:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( (string) $upcoming_count ); ?>
+			</li>
+			<li>
+				<strong><?php esc_html_e( 'Archiwalne okresy:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( (string) $archived_count ); ?>
+			</li>
+		</ul>
+
+		<?php if ( 0 < $current_count ) : ?>
+			<div class="notice notice-success inline">
+				<p><?php esc_html_e( 'Znaleziono co najmniej jeden okres jadłospisu obowiązujący dzisiaj.', 'zywienie-dla-zdrowia' ); ?></p>
+			</div>
+		<?php else : ?>
+			<div class="notice notice-warning inline">
+				<p><?php esc_html_e( 'Brak jadłospisu obowiązującego dzisiaj.', 'zywienie-dla-zdrowia' ); ?></p>
+			</div>
+		<?php endif; ?>
 		<?php
 	}
 

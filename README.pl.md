@@ -4,7 +4,7 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów, integracja z WordPress uploads, serwis katalogu oparty na transientach i pierwsza techniczna strona administracyjna są zaimplementowane, ale funkcje publiczne i pozostałe moduły nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline i classifier okresów jadłospisów, integracja z WordPress uploads, serwis katalogu oparty na transientach i pierwsza techniczna strona administracyjna są zaimplementowane, ale funkcje publiczne i pozostałe moduły nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
@@ -15,10 +15,11 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Niezależny, nierekurencyjny scanner katalogu jadłospisów, który odrzuca symlinki, raportuje nierozpoznane wpisy, sortuje dokumenty według dat z nazw i deterministycznie grupuje identyczne okresy.
 - Niezależny validator kandydatów PDF sprawdzający symlink, zwykły i czytelny plik, opcjonalne MIME, nagłówek oraz marker EOF w ograniczonym fragmencie końca.
 - Niezależny builder zwalidowanego katalogu jadłospisów, który zachowuje tylko dokumenty zaakceptowane przez scanner i ograniczony validator PDF, filtruje grupy okresów oraz łączy deterministycznie uporządkowane issues.
+- Niezależny i deterministyczny classifier dzielący zwalidowane grupy okresów na aktualne, nadchodzące i archiwalne względem jawnie przekazanej daty kalendarzowej.
 - Wyznaczanie ścieżki przez WordPress uploads API, tworzenie `zywienie-dla-zdrowia/jadlospisy/` podczas aktywacji oraz provider łączący ten katalog ze standalone pipeline.
 - Cache WordPress Transients API o czasie życia około pięciu minut oraz serwis katalogu udostępniający odczyt z cache i programowe operacje refresh/clear.
-- Natywną stronę administracyjną WordPress „Status publikacji” z licznikami katalogu jadłospisów, bezpiecznymi opisami problemów i ręcznym odświeżaniem chronionym capability oraz nonce w przepływie POST/Redirect/GET.
-- Testy PHPUnit parsera nazw, scannera filesystemu, validatora kandydatów PDF i pipeline katalogu bez uruchamiania WordPressa.
+- Natywną stronę administracyjną WordPress „Status publikacji” ze statusem technicznym katalogu, licznikami okresów aktualnych/nadchodzących/archiwalnych względem daty witryny WordPress, bezpiecznymi opisami problemów i ręcznym odświeżaniem chronionym capability oraz nonce w przepływie POST/Redirect/GET.
+- Testy PHPUnit parsera nazw, scannera filesystemu, validatora kandydatów PDF, pipeline katalogu i classifiera okresów bez uruchamiania WordPressa.
 - Narzędzia developerskie Composer: PHP_CodeSniffer i WordPress Coding Standards.
 - Początkową dokumentację projektu, bezpieczeństwa, współpracy i specyfikacji produktu.
 - Workflow CI sprawdzający konfigurację Composer, składnię PHP, PHPCS i PHPUnit.
@@ -31,7 +32,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
 - Dodatkowe zabezpieczenia serwerowe, antywirusowe lub sanitizacja dokumentów wymagane przez konkretne wdrożenie.
 - Konfiguracja przez WordPress Options API.
-- Rozbudowa panelu administracyjnego o pozostałe moduły, shortcode’y i publiczny frontend.
+- Listy dokumentów aktualnych, nadchodzących i archiwalnych, rozbudowa panelu administracyjnego o pozostałe moduły, shortcode’y oraz publiczny frontend.
 - Shortcode’y wymienione w [roboczej specyfikacji v1.0](docs/specification-v1.0.md).
 
 ### Poza zakresem v1.0 (Out of scope)
@@ -86,9 +87,13 @@ Pliki będzie można dostarczać przez zewnętrznie skonfigurowane, ograniczone 
 
 Administratorzy z capability `manage_options` mogą otworzyć **Żywienie dla Zdrowia → Status publikacji**. Strona pobiera dane wyłącznie przez `ZFDZ_WordPress_Menu_Catalog_Service`, pokazuje techniczny status modułu jadłospisów, liczbę dokumentów, okresów i problemów oraz bezpieczne polskie opisy wykrytych issues. Nie pokazuje ścieżek filesystemu ani linków do dokumentów.
 
+Dla poprawnego katalogu strona pobiera datę odniesienia jeden raz przez WordPress `current_datetime()` i klasyfikuje istniejące grupy okresów jako aktualne (`start_date <= today <= end_date`), nadchodzące (`start_date > today`) albo archiwalne (`end_date < today`). Granice są inkluzywne. Panel pokazuje datę odniesienia, trzy liczniki okresów oraz osobną informację, czy co najmniej jeden okres jadłospisu obowiązuje dzisiaj. Nie wyświetla jeszcze list okresów ani dokumentów.
+
 Ręczne odświeżanie używa klasycznego przepływu POST/Redirect/GET przez `admin-post.php`. Handler sprawdza `manage_options` i nonce WordPressa przed wywołaniem `refresh_catalog()`, a następnie przekierowuje tylko z dozwolonym statusem success albo error. Strona nie dodaje własnego CSS ani JavaScriptu.
 
-Na tym etapie status **OK** oznacza wyłącznie, że katalog jest technicznie dostępny i nie zawiera problemów scannera lub validatora. Nie oznacza istnienia aktualnego jadłospisu, publikacji wszystkich wymaganych materiałów ani zgodności organizacji z prawem.
+Na tym etapie status techniczny **OK** oznacza wyłącznie, że katalog jest technicznie dostępny i nie zawiera problemów scannera lub validatora. Brak aktualnego okresu jest raportowany osobno i nie zmienia statusu technicznego na błąd. Żaden z tych statusów nie oznacza publikacji wszystkich wymaganych materiałów ani zgodności organizacji z prawem.
+
+Klasyfikacja okresów jest obliczana po pobraniu katalogu z cache i nie trafia do transientu. Dzięki temu zmiana daty witryny WordPress wpływa na klasyfikację przy następnym renderowaniu strony bez invalidacji cached catalog.
 
 ## Development
 
@@ -101,7 +106,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF oraz pipeline zwalidowanego katalogu. WordPress-specific lifecycle storage, warstwa cache transientów i strona administracyjna są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Publiczne shortcode’y, frontend, administracja pozostałych modułów i klasyfikacja aktualne/nadchodzące/archiwalne pozostają planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu oraz classifier okresów aktualne/nadchodzące/archiwalne. WordPress-specific lifecycle storage, warstwa cache transientów i strona administracyjna są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Publiczne shortcode’y, frontend, listy okresów i dokumentów, administracja pozostałych modułów oraz pozostała konfiguracja nadal są planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 

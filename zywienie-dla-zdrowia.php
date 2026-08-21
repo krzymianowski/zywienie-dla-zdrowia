@@ -20,6 +20,8 @@ require_once __DIR__ . '/includes/class-zfdz-menu-filename-parse-result.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-filename-parser.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-scan-issue.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-period-group.php';
+require_once __DIR__ . '/includes/class-zfdz-menu-period-classification.php';
+require_once __DIR__ . '/includes/class-zfdz-menu-period-classifier.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-scan-result.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-directory-scanner.php';
 require_once __DIR__ . '/includes/class-zfdz-pdf-validation-result.php';
