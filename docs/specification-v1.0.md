@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, Etap 12 — standalone laboratory-result filesystem catalog pipeline, Etap 13 — WordPress storage, activation lifecycle i provider katalogu wyników badań, Etap 14 — skoordynowany serwis menu/lab i fingerprint-aware cache wyników badań, Etap 15 — techniczny status badań i skoordynowane odświeżanie na istniejącej stronie administracyjnej, Etap 16 — standalone politykę wyboru najnowszego wyniku badania, Etap 17 — prezentację latest selection w panelu „Status publikacji”, Etap 18 — standalone techniczną politykę publicznej prezentacji wyniku, Etap 19 — WordPress result, resolver i cienki service integrujący tę politykę ze skoordynowaną dostępnością katalogów, a Etap 20 — publiczny URL technicznego kandydata i bezparametrowy shortcode `[zfdz_badania]`. Konfiguracja przez Options API, zbiorczy frontend oraz pozostałe shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, Etap 12 — standalone laboratory-result filesystem catalog pipeline, Etap 13 — WordPress storage, activation lifecycle i provider katalogu wyników badań, Etap 14 — skoordynowany serwis menu/lab i fingerprint-aware cache wyników badań, Etap 15 — techniczny status badań i skoordynowane odświeżanie na istniejącej stronie administracyjnej, Etap 16 — standalone politykę wyboru najnowszego wyniku badania, Etap 17 — prezentację latest selection w panelu „Status publikacji”, Etap 18 — standalone techniczną politykę publicznej prezentacji wyniku, Etap 19 — WordPress result, resolver i cienki service integrujący tę politykę ze skoordynowaną dostępnością katalogów, Etap 20 — publiczny URL technicznego kandydata i bezparametrowy shortcode `[zfdz_badania]`, a Etap 21 — bezparametrowy aggregate shortcode `[zywienie_dla_zdrowia]` składający istniejące widoki menu i badania. Konfiguracja przez Options API oraz pozostałe shortcode’y modułów pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -344,6 +344,14 @@ Etap 20 dodaje publiczny URL i bezparametrowy shortcode `[zfdz_badania]` jako ci
 
 Shortcode nie przyjmuje parametrów, nie dodaje archiwum badań, CSS, JavaScriptu, nowego cache, transientu, endpointu ani zmian panelu administracyjnego. Publiczny link jest sposobem prezentacji, a nie mechanizmem kontroli dostępu: dokument w publicznym WordPress uploads może pozostać dostępny pod znanym bezpośrednim URL-em także wtedy, gdy shortcode aktualnie go nie pokazuje. Plugin nie dodaje private storage, autoryzacji bezpośredniego pobierania, proxy, reguł serwera WWW, skanowania malware, sanitizacji ani gwarancji bezpieczeństwa PDF. Techniczny `CANDIDATE` nie jest zgodą prawną, medyczną ani administracyjną.
 
+## Zaimplementowany zakres Etapu 21
+
+Etap 21 dodaje bezparametrowy aggregate shortcode `[zywienie_dla_zdrowia]`. Jest on cienką warstwą kompozycji: wywołuje dokładnie raz publiczny `ZFDZ_WordPress_Menu_Shortcode::render()`, a następnie dokładnie raz `ZFDZ_WordPress_Lab_Result_Shortcode::render()`. Ich niezmieniony, wcześniej escapowany HTML umieszcza kolejno w statycznych wrapperach `zfdz-overview-menus` i `zfdz-overview-lab-result` wewnątrz jednego `zfdz-overview`.
+
+Aggregate nie używa `do_shortcode()`, nie parsuje ani nie modyfikuje child HTML i nie zmienia ich komunikatów. Nie pobiera bezpośrednio catalog services, nie analizuje associations lub issues, nie klasyfikuje okresów, nie wybiera latest result, nie uruchamia presentation policy, nie buduje URL-i, nie czyta filesystemu i nie dodaje cache. Awaria jednego widoku nie ukrywa drugiego: każdy renderer jest zawsze wywoływany zgodnie z własnym kontraktem.
+
+`[zywienie_dla_zdrowia]` zawiera wyłącznie bieżący/nadchodzący widok `[zfdz_jadlospisy]` oraz publiczny stan `[zfdz_badania]`, w tej kolejności. Nie zawiera `[zfdz_jadlospisy_archiwum]` ani archiwum badań. Child shortcode’y pozostają niezależnie dostępne. Etap nie dodaje parametrów, Options API, CSS, JavaScriptu, publicznych komunikatów, URL-i, endpointów ani nowej logiki biznesowej. Istniejąca granica bezpieczeństwa publicznego WordPress uploads URL pozostaje bez zmian i nie stanowi kontroli dostępu.
+
 ## Cel
 
 Żywienie dla Zdrowia będzie wtyczką WordPress wspierającą prowadzenie publicznej sekcji:
@@ -463,7 +471,6 @@ Zaimplementowane parser, scanner, catalog pipeline i matcher:
 
 Nadal planowane są:
 
-- zbiorczy frontend łączący moduły;
 - ewentualny workflow zatwierdzania, jeżeli zostanie świadomie zaprojektowany.
 
 Nazwy plików są traktowane jako niezaufane dane wejściowe. Scanner nie otwiera treści dokumentów, a ograniczony validator wykonuje tylko bounded reads wymagane do sprawdzenia kandydata PDF. Pipeline nie interpretuje treści PDF i nie ocenia wyniku badania medycznie ani normatywnie.
@@ -565,16 +572,16 @@ Zaimplementowane shortcode’y:
 [zfdz_jadlospisy]
 [zfdz_jadlospisy_archiwum]
 [zfdz_badania]
+[zywienie_dla_zdrowia]
 ```
 
-Nie przyjmują parametrów. `[zfdz_jadlospisy]` pokazuje aktualne i nadchodzące grupy jadłospisów, natomiast `[zfdz_jadlospisy_archiwum]` pokazuje wyłącznie archiwalne grupy od najnowszej do starszych. Oba korzystają z tego samego cached catalog i z ręcznego odświeżania dostępnego w panelu administratora. `[zfdz_badania]` konsumuje skoordynowany public-presentation result i renderuje URL wyłącznie dla technicznego `CANDIDATE`; pozostałe stany otrzymują bezpieczne komunikaty bez linku i diagnostyki.
+Nie przyjmują parametrów. `[zfdz_jadlospisy]` pokazuje aktualne i nadchodzące grupy jadłospisów, natomiast `[zfdz_jadlospisy_archiwum]` pokazuje wyłącznie archiwalne grupy od najnowszej do starszych. Oba korzystają z tego samego cached catalog i z ręcznego odświeżania dostępnego w panelu administratora. `[zfdz_badania]` konsumuje skoordynowany public-presentation result i renderuje URL wyłącznie dla technicznego `CANDIDATE`; pozostałe stany otrzymują bezpieczne komunikaty bez linku i diagnostyki. `[zywienie_dla_zdrowia]` składa bez zmian output `[zfdz_jadlospisy]`, a po nim output `[zfdz_badania]`; nie zawiera archiwum jadłospisów.
 
 URL wyniku badania powstaje wyłącznie z `baseurl` WordPress uploads, stałych katalogów `zywienie-dla-zdrowia/badania` oraz `rawurlencode()` dokładnego oryginalnego filename wybranego dokumentu. Widoczny HTML używa display name i dat, nie oryginalnego filename. Shortcode nie analizuje issues lub associations, nie szuka starszego fallbacku i nie dodaje osobnego cache. Linkowanie pliku w publicznym uploads nie jest kontrolą dostępu ani gwarancją bezpieczeństwa dokumentu.
 
-Pozostałe planowane shortcode’y:
+Pozostałe planowane shortcode’y modułów:
 
 ```text
-[zywienie_dla_zdrowia]
 [zfdz_materialy]
 [zfdz_ankieta]
 ```

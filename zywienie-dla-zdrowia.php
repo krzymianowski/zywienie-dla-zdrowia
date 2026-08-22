@@ -57,11 +57,13 @@ require_once __DIR__ . '/includes/class-zfdz-wordpress-lab-result-public-present
 require_once __DIR__ . '/includes/class-zfdz-wordpress-lab-result-public-url-resolver.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-lab-result-shortcode.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-shortcode.php';
+require_once __DIR__ . '/includes/class-zfdz-wordpress-overview-shortcode.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-admin-status-page.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-admin.php';
 
 ZFDZ_WordPress_Menu_Shortcode::register();
 ZFDZ_WordPress_Lab_Result_Shortcode::register();
+ZFDZ_WordPress_Overview_Shortcode::register();
 ZFDZ_WordPress_Admin::register();
 
 register_activation_hook(

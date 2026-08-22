@@ -4,7 +4,7 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów i badań, deterministyczny wybór najnowszego wyniku badania, techniczna polityka publicznej prezentacji wraz z resolverem/serwisem WordPress, WordPress storage/providery, skoordynowany cache katalogów powiązany z fingerprintem okresów, techniczny status administracyjny ze szczegółami latest result, publiczne shortcode’y jadłospisów oraz publiczny shortcode technicznego kandydata wyniku badania są zaimplementowane. Zbiorczy frontend i pozostałe moduły nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów i badań, deterministyczny wybór najnowszego wyniku badania, techniczna polityka publicznej prezentacji wraz z resolverem/serwisem WordPress, WordPress storage/providery, skoordynowany cache katalogów powiązany z fingerprintem okresów, techniczny status administracyjny ze szczegółami latest result, publiczne shortcode’y modułów oraz zbiorczy shortcode frontendu są zaimplementowane. Pozostałe moduły nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
@@ -31,6 +31,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Bezparametrowy shortcode `[zfdz_jadlospisy]`, który grupuje zwalidowanych kandydatów PDF według dokładnego okresu oraz renderuje linki do aktualnych i nadchodzących jadłospisów na podstawie WordPress uploads base URL.
 - Bezparametrowy shortcode `[zfdz_jadlospisy_archiwum]`, który renderuje archiwalne okresy jadłospisów od najnowszego i zachowuje grupowanie identycznych okresów.
 - Bezparametrowy shortcode `[zfdz_badania]`, który renderuje wyłącznie technicznego kandydata wyniku badania wraz z bezpiecznymi komunikatami stanów i zakodowanym linkiem opartym na WordPress uploads URL.
+- Bezparametrowy zbiorczy shortcode `[zywienie_dla_zdrowia]`, który renderuje istniejący widok aktualnych/nadchodzących jadłospisów, a następnie istniejący widok wyniku badania, bez duplikowania ich logiki biznesowej.
 - Testy PHPUnit parsera nazw, scannera filesystemu, validatora kandydatów PDF, pipeline katalogu i classifiera okresów bez uruchamiania WordPressa.
 - Narzędzia developerskie Composer: PHP_CodeSniffer i WordPress Coding Standards.
 - Początkową dokumentację projektu, bezpieczeństwa, współpracy i specyfikacji produktu.
@@ -39,12 +40,12 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 ### Planowane dla v1.0 (Planned for v1.0)
 
 - Jadłospisy.
-- Zbiorczy frontend oraz konfiguracja Options API.
+- Konfiguracja Options API.
 - Materiały edukacyjne.
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
 - Dodatkowe zabezpieczenia serwerowe, antywirusowe lub sanitizacja dokumentów wymagane przez konkretne wdrożenie.
 - Konfiguracja przez WordPress Options API.
-- Zbiorczy shortcode `[zywienie_dla_zdrowia]`, shortcode’y pozostałych modułów, rozbudowa panelu administracyjnego oraz opcjonalne style frontendu.
+- Shortcode’y pozostałych modułów, rozbudowa panelu administracyjnego oraz opcjonalne style frontendu.
 - Shortcode’y wymienione w [roboczej specyfikacji v1.0](docs/specification-v1.0.md).
 
 ### Poza zakresem v1.0 (Out of scope)
@@ -162,6 +163,18 @@ Widok kandydata używa semantycznych elementów `h2`, `dl`/`dt`/`dd` i zwykłego
 
 Publiczny link jest sposobem prezentacji, a nie kontrolą dostępu. Dokument znajdujący się w publicznym WordPress uploads może nadal być dostępny pod bezpośrednim URL-em także wtedy, gdy shortcode pokazuje stan unavailable, empty lub blocked. Plugin nie zapewnia private storage, autoryzacji bezpośredniego dostępu do PDF, proxy pobierania, skanowania malware, sanitizacji, pełnego parsowania PDF ani gwarancji bezpieczeństwa dokumentu. Techniczny candidate nie jest zgodą prawną, medyczną ani administracyjną.
 
+## Zbiorczy publiczny shortcode
+
+Na stronie WordPress można umieścić bezparametrowy shortcode zbiorczego bieżącego widoku publicznego:
+
+```text
+[zywienie_dla_zdrowia]
+```
+
+Wywołuje on bezpośrednio dokładnie raz istniejący renderer `[zfdz_jadlospisy]`, a następnie dokładnie raz istniejący renderer `[zfdz_badania]`, zachowując ich markup, komunikaty, escaping, linki, cache i niezależną obsługę stanów. Aggregate dodaje wyłącznie statyczne wrappery `zfdz-overview`; nie parsuje HTML dzieci, nie uruchamia parsera shortcode WordPress, nie analizuje katalogów, nie wybiera latest result, nie buduje URL-i i nie dodaje cache.
+
+Archiwum jadłospisów pozostaje dostępne wyłącznie przez osobny `[zfdz_jadlospisy_archiwum]` i nie wchodzi do widoku zbiorczego. Wszystkie trzy shortcode’y modułowe pozostają dostępne niezależnie. Shortcode zbiorczy nie przyjmuje atrybutów i nie dodaje Options API, CSS, JavaScriptu, archiwum badań, endpointu ani nowych publicznych komunikatów.
+
 ## Standalone filesystem pipeline wyników badań
 
 Etap 11 definiuje kontrakt filename `YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`. Pierwsze dwie daty identyfikują dokładny okres jadłospisu, trzecia jest datą wyniku badania, a pozostała niepusta część stanowi nazwę. Data wyniku musi być rzeczywistą datą kalendarzową, ale może przypadać przed okresem jadłospisu, w jego trakcie albo po nim.
@@ -176,7 +189,7 @@ Standalone public presentation policy konsumuje wyłącznie ten niezmienny lates
 
 Niedostępność katalogu celowo pozostaje poza standalone policy. WordPress resolver publicznej prezentacji mapuje `menu_catalog_unavailable` i `lab_catalog_unavailable` na oddzielne przyczyny `UNAVAILABLE`, nie uruchamiając selectora ani policy. Dla successful coordinated catalog przekazuje associations przez selector i policy, uzyskując `NO_RESULT`, `BLOCKED_UNMATCHED` albo `CANDIDATE`. `UNAVAILABLE` nie jest `NO_RESULT`, blocked result nie wystawia document, a latest unmatched nigdy nie powoduje fallbacku do starszego match. Resolver nie analizuje entry-level issues, dlatego latest matched pozostaje technicznym kandydatem także przy starszej association unmatched.
 
-Aktywacja tworzy idempotentnie zarządzany katalog `badania/` pod WordPress uploads basedir. WordPress provider wyników badań wyznacza tę ścieżkę i przekazuje jawnie dostarczone, zwalidowane grupy okresów jadłospisów do standalone pipeline. Celowo nie pobiera sam katalogu jadłospisów. Skoordynowany service dostarcza te grupy, rozróżnia niedostępność menu i katalogu badań, cache’uje wyłącznie successful lab catalog dla dokładnego fingerprintu okresów menu i zasila techniczny status administracyjny. Panel wyznacza latest selection podczas successful renderowania. Osobno service publicznej prezentacji pobiera jeden coordinated result i przekazuje całe mapowanie deterministycznemu resolverowi; nie wykonuje bezpośrednich wywołań WordPress API i nie dodaje osobnego cache. Shortcode `[zfdz_badania]` konsumuje ten result i wyznacza publiczny URL wyłącznie dla `CANDIDATE`; zbiorczy frontend i konfiguracja Options API nie są zaimplementowane. Powiązanie, wybór lub wskazanie technicznego kandydata jest wyłącznie operacją na metadata. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
+Aktywacja tworzy idempotentnie zarządzany katalog `badania/` pod WordPress uploads basedir. WordPress provider wyników badań wyznacza tę ścieżkę i przekazuje jawnie dostarczone, zwalidowane grupy okresów jadłospisów do standalone pipeline. Celowo nie pobiera sam katalogu jadłospisów. Skoordynowany service dostarcza te grupy, rozróżnia niedostępność menu i katalogu badań, cache’uje wyłącznie successful lab catalog dla dokładnego fingerprintu okresów menu i zasila techniczny status administracyjny. Panel wyznacza latest selection podczas successful renderowania. Osobno service publicznej prezentacji pobiera jeden coordinated result i przekazuje całe mapowanie deterministycznemu resolverowi; nie wykonuje bezpośrednich wywołań WordPress API i nie dodaje osobnego cache. Shortcode `[zfdz_badania]` konsumuje ten result i wyznacza publiczny URL wyłącznie dla `CANDIDATE`; `[zywienie_dla_zdrowia]` składa jego niezmieniony output po niezmienionym rendererze aktualnych/nadchodzących jadłospisów. Konfiguracja Options API nie jest zaimplementowana. Powiązanie, wybór lub wskazanie technicznego kandydata jest wyłącznie operacją na metadata. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
 
 ## Development
 
@@ -189,7 +202,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu, classifier okresów aktualne/nadchodzące/archiwalne, parser nazw wyników badań, matcher dokładnego okresu, latest-result selector, public presentation policy, nierekurencyjny scanner, zwalidowany pipeline badań, inwarianty coordinated service result, mapowanie WordPress public-presentation result/resolver oraz wyznaczanie publicznego URL wyłącznie dla candidate. WordPress-specific storage, providery, obie warstwy transientów, coordinated i public-presentation services, strona administracyjna oraz publiczne shortcode’y są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Zbiorczy frontend i konfiguracja nadal są planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu, classifier okresów aktualne/nadchodzące/archiwalne, parser nazw wyników badań, matcher dokładnego okresu, latest-result selector, public presentation policy, nierekurencyjny scanner, zwalidowany pipeline badań, inwarianty coordinated service result, mapowanie WordPress public-presentation result/resolver oraz wyznaczanie publicznego URL wyłącznie dla candidate. WordPress-specific storage, providery, obie warstwy transientów, coordinated i public-presentation services, strona administracyjna oraz publiczne shortcode’y — w tym cienki renderer zbiorczy — są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Konfiguracja Options API nadal jest planowana.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 
