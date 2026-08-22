@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Public parameter-free `[zfdz_badania]` shortcode rendering only the current technical laboratory-result candidate, with state-specific safe messages and an encoded WordPress uploads URL.
+- WordPress laboratory-result uploads `baseurl` resolution and a standalone candidate-only public URL resolver using the parser-approved original filename as one percent-encoded path segment.
 - WordPress laboratory-result public-presentation result, deterministic resolver, and thin service preserving distinct unavailable, no-result, blocked-unmatched, and candidate states.
 - Standalone laboratory-result public presentation policy with immutable no-result, candidate, and blocked-unmatched decisions, without fallback or public output.
 - Latest laboratory-result details on the WordPress “Status publikacji” page, derived from the standalone selector without fallback or a separate cache.
