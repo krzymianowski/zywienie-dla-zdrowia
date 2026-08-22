@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Standalone deterministic latest laboratory-result selector with immutable empty, matched, and unmatched outcomes and no fallback from a latest unmatched result to an older match.
 - Laboratory-result technical status on the existing WordPress “Status publikacji” page, including validated, matched, unmatched, and issue counts with safe details.
 - Coordinated protected administration refresh for menu and laboratory-result catalogs through the existing POST/nonce/PRG endpoint.
 - Coordinated WordPress laboratory-result catalog service with distinct success, menu-unavailable, and laboratory-unavailable result states.

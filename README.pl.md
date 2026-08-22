@@ -4,7 +4,7 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów i badań, WordPress storage/providery, skoordynowany cache katalogów powiązany z fingerprintem okresów, techniczny status administracyjny obu modułów oraz publiczne shortcode’y jadłospisów są zaimplementowane. Polityka najnowszego wyniku i publiczna prezentacja badań nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów i badań, deterministyczny wybór najnowszego wyniku badania, WordPress storage/providery, skoordynowany cache katalogów powiązany z fingerprintem okresów, techniczny status administracyjny obu modułów oraz publiczne shortcode’y jadłospisów są zaimplementowane. Integracja latest selection z WordPressem/panelem i publiczna prezentacja badań nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
@@ -18,6 +18,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Niezależny i deterministyczny classifier dzielący zwalidowane grupy okresów na aktualne, nadchodzące i archiwalne względem jawnie przekazanej daty kalendarzowej.
 - Niezależny parser nazw wyników badań zgodnych z `YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`, niezmienny model dokumentu i wyniku parsowania oraz maszynowo czytelne błędy walidacji.
 - Deterministyczny standalone matcher wiążący wynik badania z grupą jadłospisu wyłącznie przy dokładnej zgodności obu dat okresu i reprezentujący brak grupy jako prawidłowy wynik unmatched.
+- Niezależny selector najnowszego wyniku badania z niezmiennymi stanami empty, matched i unmatched, niezależny od kolejności wejścia i bez fallbacku do starszego matched result.
 - Niezależny, nierekurencyjny scanner katalogu wyników badań, który odrzuca symlinki, zachowuje błędy parsera i deterministycznie porządkuje rozpoznane dokumenty oraz issues.
 - Niezależny pipeline katalogu wyników badań, który wykorzystuje istniejący bounded PDF candidate validator, pomija odrzucone pliki, łączy deterministyczne issues i zwraca zwalidowane dokumenty wraz z associations matched lub unmatched.
 - Wyznaczanie ścieżki przez WordPress uploads API, tworzenie `zywienie-dla-zdrowia/jadlospisy/` podczas aktywacji oraz provider łączący ten katalog ze standalone pipeline.
@@ -35,7 +36,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 ### Planowane dla v1.0 (Planned for v1.0)
 
 - Jadłospisy.
-- Polityka wyboru najnowszego wyniku badania, publiczny shortcode, linki i zbiorczy frontend oraz konfiguracja Options API.
+- Integracja latest selection z WordPressem i panelem, publiczny shortcode badań, linki i zbiorczy frontend oraz konfiguracja Options API.
 - Materiały edukacyjne.
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
 - Dodatkowe zabezpieczenia serwerowe, antywirusowe lub sanitizacja dokumentów wymagane przez konkretne wdrożenie.
@@ -146,9 +147,11 @@ Etap 11 definiuje kontrakt filename `YYYY-MM-DD_YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`
 
 Standalone parser odrzuca wejścia ścieżkowe, rozszerzenia inne niż PDF, błędne lub niemożliwe daty, odwrócony zakres jadłospisu, nieprawidłowy UTF-8, znaki kontrolne i nieprawidłowe nazwy. Zwraca niezmienny dokument albo jeden stabilny, maszynowo czytelny błąd. Nierekurencyjny scanner odrzuca symlinki i nieobsługiwane typy wpisów, przekazuje parserowi wyłącznie basename zwykłych plików i nie otwiera treści dokumentów. Builder katalogu waliduje tylko filenames zaakceptowane przez scanner za pomocą istniejącego bounded PDF candidate validatora, deterministycznie łączy issues i przekazuje zwalidowanych kandydatów do matchera dokładnego okresu.
 
-Matcher porównuje wyłącznie `menu_start_date` i `menu_end_date` z datami istniejącej `ZFDZ_Menu_Period_Group`. Brak dokładnego okresu tworzy association unmatched, a nie błąd parsera, walidacji PDF lub katalogu. Associations i finalne documents są deterministycznie uporządkowane według daty wyniku malejąco, dat okresu malejąco i oryginalnego filename rosnąco przez binarny `strcmp()`. Polityka wyboru najnowszego wyniku nie jest jeszcze zaimplementowana.
+Matcher porównuje wyłącznie `menu_start_date` i `menu_end_date` z datami istniejącej `ZFDZ_Menu_Period_Group`. Brak dokładnego okresu tworzy association unmatched, a nie błąd parsera, walidacji PDF lub katalogu. Associations i finalne documents są deterministycznie uporządkowane według daty wyniku malejąco, dat okresu malejąco i oryginalnego filename rosnąco przez binarny `strcmp()`.
 
-Aktywacja tworzy idempotentnie zarządzany katalog `badania/` pod WordPress uploads basedir. WordPress provider wyników badań wyznacza tę ścieżkę i przekazuje jawnie dostarczone, zwalidowane grupy okresów jadłospisów do standalone pipeline. Celowo nie pobiera sam katalogu jadłospisów. Skoordynowany service dostarcza te grupy, rozróżnia niedostępność menu i katalogu badań, cache’uje wyłącznie successful lab catalog dla dokładnego fingerprintu okresów menu i zasila techniczny status administracyjny. Polityka najnowszego wyniku, shortcode, publiczne linki, zbiorczy frontend i konfiguracja Options API nie są jeszcze zaimplementowane. Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
+Standalone latest selector przyjmuje associations w dowolnej kolejności i stosuje identyczny porządek: `result_date` malejąco, `menu_start_date` malejąco, `menu_end_date` malejąco oraz oryginalny filename rosnąco przez binarny `strcmp()`. Pusta lista daje `EMPTY`. W pozostałych przypadkach najnowsza association daje `MATCHED` albo `UNMATCHED`. Najnowszy unmatched result nigdy nie jest ukrywany przez fallback do starszego matched result. Selector nie używa zegara systemowego, `filemtime`, filesystemu, WordPress API ani treści dokumentu i nie decyduje o publicznym pokazaniu pliku.
+
+Aktywacja tworzy idempotentnie zarządzany katalog `badania/` pod WordPress uploads basedir. WordPress provider wyników badań wyznacza tę ścieżkę i przekazuje jawnie dostarczone, zwalidowane grupy okresów jadłospisów do standalone pipeline. Celowo nie pobiera sam katalogu jadłospisów. Skoordynowany service dostarcza te grupy, rozróżnia niedostępność menu i katalogu badań, cache’uje wyłącznie successful lab catalog dla dokładnego fingerprintu okresów menu i zasila techniczny status administracyjny. Panel i frontend nie korzystają jeszcze z latest selection; shortcode badań, publiczne linki, zbiorczy frontend i konfiguracja Options API także nie są zaimplementowane. Powiązanie lub wybór wyniku jest wyłącznie techniczną operacją na metadata. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
 
 ## Development
 
@@ -161,7 +164,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu, classifier okresów aktualne/nadchodzące/archiwalne, parser nazw wyników badań, matcher dokładnego okresu, nierekurencyjny scanner, zwalidowany pipeline badań oraz inwarianty coordinated service result. WordPress-specific storage, providery, obie warstwy transientów, coordinated service, strona administracyjna i publiczne shortcode’y jadłospisów są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Latest-result, zbiorczy shortcode, frontend pozostałych modułów i konfiguracja nadal są planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu, classifier okresów aktualne/nadchodzące/archiwalne, parser nazw wyników badań, matcher dokładnego okresu, latest-result selector, nierekurencyjny scanner, zwalidowany pipeline badań oraz inwarianty coordinated service result. WordPress-specific storage, providery, obie warstwy transientów, coordinated service, strona administracyjna i publiczne shortcode’y jadłospisów są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Integracja latest selection z WordPressem/panelem, zbiorczy shortcode, frontend pozostałych modułów i konfiguracja nadal są planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 
