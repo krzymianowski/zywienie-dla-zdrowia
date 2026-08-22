@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, Etap 12 — standalone laboratory-result filesystem catalog pipeline, Etap 13 — WordPress storage, activation lifecycle i provider katalogu wyników badań, Etap 14 — skoordynowany serwis menu/lab i fingerprint-aware cache wyników badań, Etap 15 — techniczny status badań i skoordynowane odświeżanie na istniejącej stronie administracyjnej, a Etap 16 — standalone politykę wyboru najnowszego wyniku badania. Konfiguracja przez Options API, integracja latest selection z WordPressem i panelem oraz pozostałe shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, Etap 12 — standalone laboratory-result filesystem catalog pipeline, Etap 13 — WordPress storage, activation lifecycle i provider katalogu wyników badań, Etap 14 — skoordynowany serwis menu/lab i fingerprint-aware cache wyników badań, Etap 15 — techniczny status badań i skoordynowane odświeżanie na istniejącej stronie administracyjnej, Etap 16 — standalone politykę wyboru najnowszego wyniku badania, a Etap 17 — prezentację latest selection w panelu „Status publikacji”. Konfiguracja przez Options API, publiczna polityka prezentacji badań oraz pozostałe shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -402,7 +402,6 @@ Zaimplementowane parser, scanner, catalog pipeline i matcher:
 Nadal planowane są:
 
 - publiczna prezentacja wyniku wraz z informacją, którego jadłospisu dotyczy;
-- ostrzeganie administratora, jeżeli najnowszy wynik nie został prawidłowo powiązany;
 - publiczny i zbiorczy shortcode oraz linkowanie w frontendzie.
 
 Nazwy plików są traktowane jako niezaufane dane wejściowe. Scanner nie otwiera treści dokumentów, a ograniczony validator wykonuje tylko bounded reads wymagane do sprawdzenia kandydata PDF. Pipeline nie interpretuje treści PDF i nie ocenia wyniku badania medycznie ani normatywnie.
@@ -438,13 +437,14 @@ Zaimplementowana nazwa pierwszej strony:
 Status publikacji
 ```
 
-Etap 7 pokazuje dla modułu jadłospisów liczbę poprawnie rozpoznanych dokumentów, okresów i problemów. Etap 8 uzupełnia stronę o datę odniesienia z czasu witryny WordPress, liczby aktualnych, nadchodzących i archiwalnych okresów oraz informację, czy istnieje co najmniej jeden okres obowiązujący dzisiaj. Etap 15 zasila cały widok jednym coordinated result i dodaje osobną sekcję wyników badań z licznikami documents, associations matched/unmatched oraz issues. Bezpieczne listy pokazują niepowiązane dokumenty i problemy bez ścieżek, URL-i lub treści PDF.
+Etap 7 pokazuje dla modułu jadłospisów liczbę poprawnie rozpoznanych dokumentów, okresów i problemów. Etap 8 uzupełnia stronę o datę odniesienia z czasu witryny WordPress, liczby aktualnych, nadchodzących i archiwalnych okresów oraz informację, czy istnieje co najmniej jeden okres obowiązujący dzisiaj. Etap 15 zasila cały widok jednym coordinated result i dodaje osobną sekcję wyników badań z licznikami documents, associations matched/unmatched oraz issues. Etap 17 wywołuje standalone `ZFDZ_Lab_Result_Latest_Selector` wyłącznie dla successful lab catalog i pokazuje derived latest selection po licznikach. Bezpieczne listy i szczegóły pokazują niepowiązane dokumenty oraz problemy bez ścieżek, URL-i lub treści PDF.
 
 Status badań `OK` wymaga successful lab catalog bez issues i unmatched, ale nie wymaga niezerowej liczby dokumentów. Successful catalog z issues lub unmatched ma status `Wymaga uwagi`. `menu_catalog_unavailable` oraz `lab_catalog_unavailable` dają `Błąd`, przy czym pierwszy stan nie przedstawia brakujących associations jako zera. Chroniony przycisk wywołuje coordinated `refresh_result()` dla menu i badań przez istniejący POST, nonce, `manage_options` oraz PRG.
 
+Blok „Najnowszy wynik” ma trzy stany. `EMPTY` oznacza successful lab catalog bez associations i jest neutralną informacją o braku zwalidowanych wyników. `MATCHED` oraz `UNMATCHED` pokazują nazwę wybranego dokumentu, `result_date`, zakodowany okres jadłospisu i techniczny stan powiązania. Panel nie sortuje associations i nie porównuje dat samodzielnie; kolejność wejściowa nie wpływa na wybór. Najnowszy `UNMATCHED` nie jest zastępowany starszym `MATCHED`. Latest selection nie jest osobno cache’owana, nie jest wykonywana przy unavailable catalog i nie stanowi decyzji o publikacji. Latest `MATCHED` może współistnieć z ogólnym statusem `Wymaga uwagi`, jeżeli katalog zawiera starsze unmatched associations lub issues.
+
 Nadal planowane elementy rozbudowanego Statusu publikacji obejmują:
 
-- najnowszy wynik badania;
 - liczbę materiałów edukacyjnych;
 - stan konfiguracji ankiety.
 
@@ -489,7 +489,7 @@ Architektura ma pozostać możliwie prosta. Nowe warstwy i abstrakcje powinny po
 - Inny fingerprint, uszkodzony payload lub failed cached catalog powoduje usunięcie transientu i cache miss.
 - `refresh_result()` czyści lab cache przed `menu_catalog_service->refresh_catalog()`, a następnie świeżo buduje lab catalog bez odczytu starego lab cache.
 - `clear_cache()` czyści tylko `zfdz_lab_result_catalog_v1`; nie usuwa `zfdz_menu_catalog_v1`.
-- Etap 15 konsumuje coordinated result w technicznym admin UI. Standalone latest-result policy Etapu 16 nie trafia do cache i nie jest jeszcze używana przez panel ani publiczny frontend.
+- Etap 15 konsumuje coordinated result w technicznym admin UI. Etap 17 wylicza standalone latest selection podczas successful renderowania panelu; wynik selekcji nie trafia do cache i nadal nie jest używany przez publiczny frontend.
 
 ## Integracja ze stroną WordPress
 

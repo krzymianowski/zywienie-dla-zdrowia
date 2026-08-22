@@ -208,6 +208,7 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 		$unmatched_count   = count( $unmatched_associations );
 		$issue_count       = count( $lab_catalog->get_issues() );
 		$status            = self::get_lab_result_status( $issue_count, $unmatched_count );
+		$latest_selection  = ( new ZFDZ_Lab_Result_Latest_Selector() )->select( $associations );
 		?>
 		<div class="notice <?php echo esc_attr( $status['notice_class'] ); ?> inline">
 			<p>
@@ -217,6 +218,7 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 		</div>
 
 		<?php self::render_lab_counts( $document_count, $association_count, $matched_count, $unmatched_count, $issue_count ); ?>
+		<?php self::render_latest_lab_result( $latest_selection ); ?>
 		<?php self::render_unmatched_lab_results( $unmatched_associations ); ?>
 		<?php self::render_lab_issues( $lab_catalog->get_issues() ); ?>
 		<?php
@@ -315,6 +317,59 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 			'label'        => __( 'OK', 'zywienie-dla-zdrowia' ),
 			'notice_class' => 'notice-success',
 		);
+	}
+
+	/**
+	 * Renders the latest validated laboratory result selected from existing associations.
+	 *
+	 * @param ZFDZ_Lab_Result_Latest_Selection $selection Latest laboratory result selection.
+	 * @return void
+	 */
+	private static function render_latest_lab_result( ZFDZ_Lab_Result_Latest_Selection $selection ): void {
+		?>
+		<h3><?php esc_html_e( 'Najnowszy wynik', 'zywienie-dla-zdrowia' ); ?></h3>
+		<p class="description"><?php esc_html_e( 'Najnowszy wynik jest ustalany według daty wyniku zapisanej w nazwie pliku.', 'zywienie-dla-zdrowia' ); ?></p>
+		<?php
+		if ( ! $selection->has_result() ) {
+			?>
+			<p><?php esc_html_e( 'Brak zwalidowanych wyników badań.', 'zywienie-dla-zdrowia' ); ?></p>
+			<?php
+			return;
+		}
+
+		$document   = $selection->get_document();
+		$is_matched = $selection->is_matched();
+		?>
+		<ul>
+			<li>
+				<strong><?php esc_html_e( 'Stan powiązania:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php $is_matched ? esc_html_e( 'Powiązany', 'zywienie-dla-zdrowia' ) : esc_html_e( 'Niepowiązany', 'zywienie-dla-zdrowia' ); ?>
+			</li>
+			<li>
+				<strong><?php esc_html_e( 'Dokument:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( $document->get_name() ); ?>
+			</li>
+			<li>
+				<strong><?php esc_html_e( 'Data wyniku:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( $document->get_result_date() ); ?>
+			</li>
+			<li>
+				<strong><?php esc_html_e( 'Okres jadłospisu:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( $document->get_menu_start_date() . ' – ' . $document->get_menu_end_date() ); ?>
+			</li>
+		</ul>
+
+		<?php if ( $is_matched ) : ?>
+			<div class="notice notice-success inline">
+				<p><?php esc_html_e( 'Najnowszy zwalidowany wynik ma dokładnie odpowiadający okres jadłospisu.', 'zywienie-dla-zdrowia' ); ?></p>
+			</div>
+		<?php else : ?>
+			<div class="notice notice-warning inline">
+				<p><?php esc_html_e( 'Najnowszy zwalidowany wynik nie ma dokładnie odpowiadającego okresu jadłospisu.', 'zywienie-dla-zdrowia' ); ?></p>
+				<p><?php esc_html_e( 'Starszy powiązany wynik nie jest używany jako zastępstwo.', 'zywienie-dla-zdrowia' ); ?></p>
+			</div>
+		<?php endif; ?>
+		<?php
 	}
 
 	/**
