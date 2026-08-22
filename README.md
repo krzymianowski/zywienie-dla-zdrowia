@@ -4,7 +4,7 @@
 
 The repository is generic and is not tied to any particular organization or deployment.
 
-> **Development status:** version `0.1.0` is an early development version. The standalone menu and laboratory-result pipelines, deterministic latest laboratory-result selection, standalone technical public-presentation policy, WordPress storage/providers, coordinated fingerprint-aware catalog caching, technical administration status with latest-result details, and public menu shortcodes are implemented. WordPress integration and frontend presentation of laboratory results remain planned. This version is not production-ready.
+> **Development status:** version `0.1.0` is an early development version. The standalone menu and laboratory-result pipelines, deterministic latest laboratory-result selection, technical public-presentation policy and WordPress resolver/service integration, WordPress storage/providers, coordinated fingerprint-aware catalog caching, technical administration status with latest-result details, and public menu shortcodes are implemented. Frontend presentation of laboratory results remains planned. This version is not production-ready.
 
 ## Status
 
@@ -26,6 +26,7 @@ The repository is generic and is not tied to any particular organization or depl
 - WordPress uploads path resolution and activation-time creation of `zywienie-dla-zdrowia/badania/`, plus a laboratory-result catalog provider that passes explicitly supplied validated menu groups to the standalone laboratory-result pipeline.
 - A WordPress Transients API cache with an approximately five-minute lifetime and a catalog service providing cached reads plus programmatic refresh and clear operations.
 - A coordinated WordPress laboratory-result catalog service with explicit menu/laboratory availability states and a separate five-minute transient cache bound to an order-independent menu-period fingerprint.
+- A WordPress laboratory-result public-presentation resolver and thin service that preserve distinct unavailable, no-result, blocked-unmatched, and technical-candidate states without adding a URL, shortcode, or decision cache.
 - A native WordPress “Status publikacji” administration page with separate technical menu and laboratory-result states, safe issue and unmatched-association reporting, derived latest-result details, and a capability- and nonce-protected coordinated refresh using POST/Redirect/GET.
 - The parameter-free `[zfdz_jadlospisy]` shortcode, which groups validated PDF candidates by exact period and renders current and upcoming menu links using the WordPress uploads base URL.
 - The parameter-free `[zfdz_jadlospisy_archiwum]` shortcode, which renders archived menu periods newest first while preserving exact-period grouping.
@@ -37,7 +38,7 @@ The repository is generic and is not tied to any particular organization or depl
 ### Planned for v1.0
 
 - Menus (jadłospisy).
-- WordPress integration of the laboratory-result presentation decision, public shortcode, frontend links, aggregate frontend, and Options API configuration.
+- The laboratory-result public shortcode, frontend links and rendering, aggregate frontend, and Options API configuration.
 - Educational materials (materiały edukacyjne).
 - A configurable link to an external feedback form or survey.
 - Any additional server-side, malware-detection, or document-sanitization controls required by a deployment.
@@ -156,9 +157,9 @@ The standalone latest selector accepts associations in any input order and appli
 
 The standalone public presentation policy consumes only that immutable latest selection. It maps `EMPTY` to `NO_RESULT`, `MATCHED` to `CANDIDATE`, and `UNMATCHED` to `BLOCKED_UNMATCHED`. A blocked decision exposes neither an association nor a document, so it cannot silently fall back to or expose an older match. `CANDIDATE` means only a validated latest document with an exact technical menu-period association; it is not legal, medical, administrative, or security approval. The policy does not inspect the full catalog or entry-level issues, so a latest matched result remains a candidate even if an older association is unmatched.
 
-Catalog unavailability is deliberately outside this policy. A future WordPress integration must not convert `menu_catalog_unavailable` or `lab_catalog_unavailable` to an empty latest selection: unavailable source data is not `NO_RESULT`. The decision is not cached separately and this stage creates no URL, shortcode, or public output.
+Catalog unavailability is deliberately outside this standalone policy. The WordPress public-presentation resolver maps `menu_catalog_unavailable` and `lab_catalog_unavailable` to distinct `UNAVAILABLE` reasons without running the selector or policy. For a successful coordinated catalog it passes associations through the selector and policy, producing `NO_RESULT`, `BLOCKED_UNMATCHED`, or `CANDIDATE`. `UNAVAILABLE` is not `NO_RESULT`, a blocked result exposes no document, and a latest unmatched result never falls back to an older match. The resolver does not inspect entry-level issues, so a latest matched result remains a technical candidate even when an older association is unmatched.
 
-Activation idempotently creates the managed `badania/` directory below the WordPress uploads base directory. The WordPress laboratory-result catalog provider resolves that path and passes explicitly supplied validated menu-period groups into the standalone pipeline. It deliberately does not fetch the menu catalog itself. The coordinated service supplies those groups, distinguishes menu and laboratory directory failures, caches only successful laboratory catalogs for the exact menu-period fingerprint, and supplies the technical administration status. The administration page derives the latest selection during successful rendering, while WordPress and the frontend do not yet consume the public presentation decision; the laboratory-result shortcode, public links, aggregate frontend, and Options API configuration are also not implemented. Associating, selecting, or identifying a technical candidate is a metadata operation only. The plugin does not interpret laboratory content, assess the result, or confirm compliance with norms or legal requirements.
+Activation idempotently creates the managed `badania/` directory below the WordPress uploads base directory. The WordPress laboratory-result catalog provider resolves that path and passes explicitly supplied validated menu-period groups into the standalone pipeline. It deliberately does not fetch the menu catalog itself. The coordinated service supplies those groups, distinguishes menu and laboratory directory failures, caches only successful laboratory catalogs for the exact menu-period fingerprint, and supplies the technical administration status. The administration page derives the latest selection during successful rendering. Separately, the public-presentation service obtains one coordinated result and delegates all mapping to the deterministic resolver; it performs no direct WordPress API calls and adds no separate cache. The laboratory-result shortcode, public URL and rendering, aggregate frontend, and Options API configuration are not implemented. Associating, selecting, or identifying a technical candidate is a metadata operation only. The plugin does not interpret laboratory content, assess the result, or confirm compliance with norms or legal requirements.
 
 ## Development
 
@@ -171,7 +172,7 @@ composer lint
 composer test
 ```
 
-There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, current/upcoming/archive period classifier, laboratory-result filename parser, exact-period matcher, latest-result selector, public presentation policy, non-recursive scanner, validated catalog pipeline, and coordinated service-result invariants. WordPress-specific storage, providers, both transient layers, coordination service, administration page, and public menu shortcodes are covered by lint and PHPCS at this stage and require manual smoke tests after review. WordPress integration of the laboratory-result presentation decision, aggregate shortcode, remaining module frontend, and configuration are still planned.
+There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, current/upcoming/archive period classifier, laboratory-result filename parser, exact-period matcher, latest-result selector, public presentation policy, non-recursive scanner, validated catalog pipeline, coordinated service-result invariants, and the WordPress public-presentation result/resolver mapping. WordPress-specific storage, providers, both transient layers, coordination and public-presentation services, administration page, and public menu shortcodes are covered by lint and PHPCS at this stage and require manual smoke tests after review. The laboratory-result public URL, shortcode and rendering, aggregate frontend, and configuration are still planned.
 
 Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md) and the repository instructions in [AGENTS.md](AGENTS.md).
 

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- WordPress laboratory-result public-presentation result, deterministic resolver, and thin service preserving distinct unavailable, no-result, blocked-unmatched, and candidate states.
 - Standalone laboratory-result public presentation policy with immutable no-result, candidate, and blocked-unmatched decisions, without fallback or public output.
 - Latest laboratory-result details on the WordPress “Status publikacji” page, derived from the standalone selector without fallback or a separate cache.
 - Standalone deterministic latest laboratory-result selector with immutable empty, matched, and unmatched outcomes and no fallback from a latest unmatched result to an older match.

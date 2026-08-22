@@ -34,4 +34,7 @@ require_once $zfdz_tests_root . '/includes/class-zfdz-lab-result-catalog-result.
 require_once $zfdz_tests_root . '/includes/class-zfdz-lab-result-catalog-builder.php';
 require_once $zfdz_tests_root . '/includes/class-zfdz-menu-catalog-result.php';
 require_once $zfdz_tests_root . '/includes/class-zfdz-wordpress-lab-result-catalog-service-result.php';
+require_once $zfdz_tests_root . '/includes/class-zfdz-wordpress-lab-result-public-presentation-result.php';
+require_once $zfdz_tests_root . '/includes/class-zfdz-wordpress-lab-result-public-presentation-resolver.php';
+require_once $zfdz_tests_root . '/includes/class-zfdz-wordpress-lab-result-public-presentation-service.php';
 require_once $zfdz_tests_root . '/includes/class-zfdz-menu-catalog-builder.php';
