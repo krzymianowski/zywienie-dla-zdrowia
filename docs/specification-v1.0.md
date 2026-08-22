@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, Etap 12 — standalone laboratory-result filesystem catalog pipeline, a Etap 13 — WordPress storage, activation lifecycle i provider katalogu wyników badań. Konfiguracja przez Options API, cache i administracja badań, administracja pozostałych modułów oraz ich shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, Etap 12 — standalone laboratory-result filesystem catalog pipeline, Etap 13 — WordPress storage, activation lifecycle i provider katalogu wyników badań, a Etap 14 — skoordynowany serwis menu/lab i fingerprint-aware cache wyników badań. Konfiguracja przez Options API, administracja badań, administracja pozostałych modułów oraz ich shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -235,6 +235,24 @@ Zwykłe ładowanie pluginu jedynie ładuje klasy i rejestruje istniejące hooki.
 
 Etap 13 nie dodaje cache, transientu, service layer, automatycznej koordynacji menu catalog + lab catalog, panelu administratora, polityki latest-result, shortcode, publicznych URL-i ani konfiguracji Options API dla wyników badań. Powiązanie wyniku z okresem jadłospisu na podstawie dat w filename pozostaje technicznym mechanizmem publikacyjnym. Plugin nie interpretuje treści badania, nie ocenia wyniku medycznie i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
 
+## Zaimplementowany zakres Etapu 14
+
+Etap 14 dodaje WordPress-specific koordynację katalogów jadłospisów i wyników badań:
+
+- niezmienny `ZFDZ_WordPress_Lab_Result_Catalog_Service_Result` rozróżnia `success`, `menu_catalog_unavailable` i `lab_catalog_unavailable` oraz konstrukcyjnie wymusza spójność odpowiednich katalogów;
+- `ZFDZ_WordPress_Lab_Result_Catalog_Cache` używa osobnego transientu `zfdz_lab_result_catalog_v1` z TTL 300 sekund;
+- cache przechowuje wyłącznie successful `ZFDZ_Lab_Result_Catalog_Result` razem z odpowiadającym fingerprintem okresów menu;
+- `ZFDZ_WordPress_Lab_Result_Catalog_Service` pobiera menu catalog przez istniejący menu service, przekazuje jego grupy jawnie do lab providera i zwraca skoordynowany result;
+- `get_result()` nie sprawdza lab cache i nie uruchamia lab providera, gdy menu catalog jest failed;
+- `refresh_result()` najpierw czyści lab cache, następnie świeżo odświeża menu catalog i — tylko gdy menu jest available — buduje świeży lab catalog;
+- `clear_cache()` usuwa wyłącznie `zfdz_lab_result_catalog_v1` i nie narusza własności `zfdz_menu_catalog_v1` należącego do menu service.
+
+Fingerprint jest obliczany jako SHA-256 ze stałego prefiksu kontraktu oraz posortowanych binarnie par `menu_start_date`/`menu_end_date`. Nie zależy od kolejności wejściowych grup, filename, nazwy dokumentu, URL, ścieżki filesystemu, locale, zegara ani timestampu cache. Pusta lista grup ma własny stabilny fingerprint. Zmiana dokładnego zbioru okresów menu powoduje lab cache miss, usunięcie niezgodnego wpisu i świeże przeliczenie associations.
+
+Nieprawidłowy, stary lub uszkodzony payload, pusty fingerprint, failed catalog i niezgodny fingerprint są usuwane i traktowane jako miss. Failed menu i lab catalogs nie są cache’owane. Successful lab catalog może zawierać entry-level issues lub unmatched associations i nadal jest cache’owany. Unmatched oznacza prawidłowy dokument bez dokładnej grupy przy technicznie dostępnym menu; nie jest równoważny `menu_catalog_unavailable`.
+
+Etap 14 nie dodaje UI badań, latest-result policy, shortcode, publicznych URL-i, agregowanego frontendu ani konfiguracji Options API. Cache nie przechowuje paths, request data, treści PDF ani metadata transientu w publicznym result modelu. Ładowanie pluginu tylko dołącza klasy i nie wykonuje operacji katalogów ani transientów.
+
 ## Cel
 
 Żywienie dla Zdrowia będzie wtyczką WordPress wspierającą prowadzenie publicznej sekcji:
@@ -293,7 +311,7 @@ materialy/
 
 Standalone scannery i pipeline katalogów jadłospisów oraz badań nadal nie znają WordPress API. Odpowiednie klasy storage zarządzają lokalizacją i lifecycle katalogów, a providery przekazują ustaloną ścieżkę do standalone buildera dopiero na żądanie. Provider badań dodatkowo wymaga jawnego przekazania już zwalidowanych grup jadłospisów i nie pobiera automatycznie menu catalog.
 
-WordPress-specific serwis Etapu 6 korzysta z providera i cache transientów. Nie zmienia publicznego modelu katalogu ani kontraktów standalone pipeline.
+WordPress-specific menu service Etapu 6 korzysta z providera i własnego cache transientów. Etap 14 dodaje odrębny coordinated lab service, który pobiera menu przez jego właściciela i używa osobnego cache badań. Żaden z serwisów nie zmienia publicznych modeli katalogów ani kontraktów standalone pipeline.
 
 Publiczne shortcode’y Etapów 9–10 pobierają URL katalogu osobno z uploads `baseurl`. Nie przekształcają ścieżki `basedir` na URL i nie umieszczają ścieżek filesystemu w HTML.
 
@@ -352,8 +370,7 @@ Zaimplementowane parser, scanner, catalog pipeline i matcher:
 
 Nadal planowane są:
 
-- cache, service layer i panel administratora dla badań;
-- automatyczna WordPress-specific koordynacja menu catalog + lab catalog;
+- panel administratora dla badań;
 - identyfikacja najnowszego wyniku na podstawie daty zapisanej w nazwie;
 - polityka wyboru najnowszego wyniku spośród wielu prawidłowych dokumentów;
 - publiczna prezentacja wyniku wraz z informacją, którego jadłospisu dotyczy;
@@ -407,6 +424,7 @@ Status techniczny ma przedstawiać wyłącznie dostępność katalogu i wykryte 
 - Filesystem jako źródło dokumentów.
 - WordPress Options API do konfiguracji.
 - Zaimplementowany cache katalogu jadłospisów przez WordPress Transients API.
+- Zaimplementowany cache katalogu badań przez osobny WordPress transient powiązany z fingerprintem okresów menu.
 - Brak własnych tabel bazy danych w v1.0.
 - Brak Custom Post Types w v1.0.
 - Brak REST API w v1.0.
@@ -427,6 +445,20 @@ Architektura ma pozostać możliwie prosta. Nowe warstwy i abstrakcje powinny po
 - Klasyfikacja okresów Etapu 8 jest obliczana po odczycie katalogu, nie trafia do transientu i dlatego zmiana bieżącej daty nie wymaga invalidacji cache.
 - Shortcode’y Etapów 9–10 korzystają wyłącznie z `get_catalog()`; nie wymuszają refresh i pokazują nowe pliki po wygaśnięciu cache lub po ręcznym odświeżeniu administratora.
 - Podstawowa implementacja nie wymaga filesystem watcherów, daemonów, cronów ani własnej kolejki.
+
+## Cache i koordynacja katalogu wyników badań
+
+- `ZFDZ_WordPress_Lab_Result_Catalog_Service` najpierw pobiera menu catalog przez `ZFDZ_WordPress_Menu_Catalog_Service`.
+- Failed menu catalog daje `menu_catalog_unavailable`; lab cache i provider nie są wtedy wywoływane, a coordinated result nie zawiera lab catalog.
+- Successful menu catalog z pustą listą grup jest dostępny technicznie. Zwalidowane badania mogą być unmatched, a coordinated status pozostaje `success`.
+- Failed lab catalog przy successful menu daje `lab_catalog_unavailable` i pozostaje dostępny jako failed lab catalog w coordinated result.
+- Successful lab catalogs są zapisywane na 300 sekund w `zfdz_lab_result_catalog_v1`; katalogi z issues lub unmatched associations nadal są successful i mogą być cache’owane.
+- Cache payload zawiera wyłącznie fingerprint menu i `ZFDZ_Lab_Result_Catalog_Result`. Failed catalogs, `WP_Error`, paths i transient metadata nie są zapisywane.
+- Fingerprint jest SHA-256 posortowanych par start/end okresów menu z wersjonowanym prefiksem i nie zależy od kolejności, filenames, URL-i, paths, locale lub czasu.
+- Inny fingerprint, uszkodzony payload lub failed cached catalog powoduje usunięcie transientu i cache miss.
+- `refresh_result()` czyści lab cache przed `menu_catalog_service->refresh_catalog()`, a następnie świeżo buduje lab catalog bez odczytu starego lab cache.
+- `clear_cache()` czyści tylko `zfdz_lab_result_catalog_v1`; nie usuwa `zfdz_menu_catalog_v1`.
+- Etap 14 nie dodaje admin UI, latest-result policy ani publicznej prezentacji wyników badań.
 
 ## Integracja ze stroną WordPress
 

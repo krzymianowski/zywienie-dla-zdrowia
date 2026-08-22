@@ -4,7 +4,7 @@
 
 The repository is generic and is not tied to any particular organization or deployment.
 
-> **Development status:** version `0.1.0` is an early development version. The standalone menu pipeline and period classifier, WordPress uploads integration, transient-backed menu catalog service, technical administration page, public menu shortcodes, standalone laboratory-result filesystem pipeline, and the first WordPress laboratory-result storage/provider integration are implemented. Laboratory-result caching, administration, latest-result policy, and public presentation remain planned. This version is not production-ready.
+> **Development status:** version `0.1.0` is an early development version. The standalone menu and laboratory-result pipelines, WordPress storage/providers, coordinated fingerprint-aware catalog caching, technical menu administration page, and public menu shortcodes are implemented. Laboratory-result administration, latest-result policy, and public presentation remain planned. This version is not production-ready.
 
 ## Status
 
@@ -23,6 +23,7 @@ The repository is generic and is not tied to any particular organization or depl
 - WordPress uploads path resolution, activation-time creation of `zywienie-dla-zdrowia/jadlospisy/`, and a catalog provider connecting that directory to the standalone pipeline.
 - WordPress uploads path resolution and activation-time creation of `zywienie-dla-zdrowia/badania/`, plus a laboratory-result catalog provider that passes explicitly supplied validated menu groups to the standalone laboratory-result pipeline.
 - A WordPress Transients API cache with an approximately five-minute lifetime and a catalog service providing cached reads plus programmatic refresh and clear operations.
+- A coordinated WordPress laboratory-result catalog service with explicit menu/laboratory availability states and a separate five-minute transient cache bound to an order-independent menu-period fingerprint.
 - A native WordPress “Status publikacji” administration page with technical catalog status, current/upcoming/archived period counts based on the WordPress site date, safe issue descriptions, and a capability- and nonce-protected manual refresh using POST/Redirect/GET.
 - The parameter-free `[zfdz_jadlospisy]` shortcode, which groups validated PDF candidates by exact period and renders current and upcoming menu links using the WordPress uploads base URL.
 - The parameter-free `[zfdz_jadlospisy_archiwum]` shortcode, which renders archived menu periods newest first while preserving exact-period grouping.
@@ -34,7 +35,7 @@ The repository is generic and is not tied to any particular organization or depl
 ### Planned for v1.0
 
 - Menus (jadłospisy).
-- Laboratory-result caching and service orchestration, administration UI, automatic menu/laboratory catalog coordination, latest-result policy, public shortcode, frontend links, and Options API configuration.
+- Laboratory-result administration UI, latest-result policy, public shortcode, frontend links, aggregate frontend, and Options API configuration.
 - Educational materials (materiały edukacyjne).
 - A configurable link to an external feedback form or survey.
 - Any additional server-side, malware-detection, or document-sanitization controls required by a deployment.
@@ -83,13 +84,21 @@ During activation, the plugin resolves the current uploads base directory throug
 
 The menu and laboratory-result storage classes resolve their locations independently from the same WordPress uploads base directory. Activation ensures both managed directories in sequence. A failure stops activation with a short translated message but does not roll back an already valid directory or remove documents. Normal plugin loading does not create directories, scan documents, or build a catalog. Deactivation does not remove directories or documents, and this stage adds no uninstall cleanup.
 
-The menu catalog provider resolves the menu directory only when its `get_catalog()` method is explicitly called. The laboratory-result provider likewise performs work only when explicitly called and accepts already validated menu-period groups from its consumer. It does not fetch the menu catalog automatically, create missing directories during reads, or add a laboratory-result cache.
+The menu catalog provider resolves the menu directory only when its `get_catalog()` method is explicitly called. The laboratory-result provider likewise performs work only when explicitly called and accepts already validated menu-period groups from its consumer. It does not fetch the menu catalog automatically or create missing directories during reads. The coordinated laboratory-result service owns the later menu-to-laboratory orchestration while preserving this provider boundary.
 
 ## Menu catalog cache
 
 The WordPress catalog service caches only successful `ZFDZ_Menu_Catalog_Result` objects for approximately five minutes under the fixed, versioned transient key `zfdz_menu_catalog_v1`. Successful catalogs may include entry-level issues. Directory failures are returned without being cached. An unexpected transient value is deleted and treated as a cache miss. Programmatic refresh deletes the previous value before rebuilding the catalog, while cache clearing only deletes the transient and never scans or changes the filesystem.
 
 Loading the plugin or creating the service performs no transient or filesystem operations. Work begins only when a consumer explicitly requests, refreshes, or clears the catalog. The implemented administration button performs an explicit protected refresh; ordinary page rendering uses the cached `get_catalog()` path.
+
+## Coordinated laboratory-result catalog cache
+
+`ZFDZ_WordPress_Lab_Result_Catalog_Service` first obtains the validated menu catalog through its existing owner. A failed menu catalog produces `menu_catalog_unavailable`; the laboratory-result cache and provider are not consulted, and no laboratory catalog is exposed. With a successful menu catalog, a deterministic SHA-256 fingerprint is calculated only from sorted `menu_start_date`/`menu_end_date` pairs. Empty groups have a stable fingerprint, and input ordering, filenames, document names, paths, URLs, locale, and time do not affect it.
+
+Successful laboratory-result catalogs are cached for 300 seconds in a separate transient named `zfdz_lab_result_catalog_v1`, together with the matching menu fingerprint. A fingerprint change invalidates the old laboratory cache before rebuilding associations. Corrupted payloads, mismatched fingerprints, failed catalogs, or unexpected values are deleted and treated as cache misses. Successful catalogs remain cacheable when they contain entry-level issues or unmatched associations.
+
+`success` means that both technical catalogs are available; unmatched associations remain valid. `menu_catalog_unavailable` means that matching cannot be evaluated and the laboratory catalog is deliberately absent. `lab_catalog_unavailable` retains a successful menu catalog together with the failed laboratory catalog. `refresh_result()` clears the laboratory cache, refreshes the menu catalog, and then freshly rebuilds the laboratory catalog as one coordinated operation. `clear_cache()` removes only `zfdz_lab_result_catalog_v1`; ownership of `zfdz_menu_catalog_v1` remains with the menu catalog service.
 
 Files may later be delivered by an externally configured restricted SFTP account. The plugin does not implement SFTP, and server administrators remain responsible for limiting that account to the document directory. Credentials must never be stored in this repository. Files delivered outside WordPress become visible after the short cache expires or earlier after an explicit programmatic refresh.
 
@@ -137,7 +146,7 @@ The standalone parser rejects path input, non-PDF extensions, malformed or impos
 
 The matcher compares only `menu_start_date` and `menu_end_date` with existing `ZFDZ_Menu_Period_Group` dates. An absent exact period produces an unmatched association, not a parse, PDF-validation, or catalog issue. Associations and final documents are ordered deterministically by result date descending, menu dates descending, and original filename using binary `strcmp()` ascending. No latest-result selection policy is implemented.
 
-Activation now idempotently creates the managed `badania/` directory below the WordPress uploads base directory. The WordPress laboratory-result catalog provider resolves that path and passes explicitly supplied validated menu-period groups into the standalone pipeline. It deliberately does not fetch the menu catalog itself. Laboratory-result cache/service orchestration, administration UI, latest-result policy, shortcode, public links, and Options API configuration are not implemented yet. Associating a result with a menu period from filename dates is a technical mechanism only. The plugin does not interpret laboratory content, assess the result, or confirm compliance with norms or legal requirements.
+Activation idempotently creates the managed `badania/` directory below the WordPress uploads base directory. The WordPress laboratory-result catalog provider resolves that path and passes explicitly supplied validated menu-period groups into the standalone pipeline. It deliberately does not fetch the menu catalog itself. The coordinated service supplies those groups, distinguishes menu and laboratory directory failures, and caches only successful laboratory catalogs for the exact menu-period fingerprint. Administration UI, latest-result policy, shortcode, public links, aggregate frontend, and Options API configuration are not implemented yet. Associating a result with a menu period from filename dates is a technical mechanism only. The plugin does not interpret laboratory content, assess the result, or confirm compliance with norms or legal requirements.
 
 ## Development
 
@@ -150,7 +159,7 @@ composer lint
 composer test
 ```
 
-There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, current/upcoming/archive period classifier, laboratory-result filename parser, exact-period matcher, non-recursive scanner, and validated catalog pipeline. The WordPress-specific menu and laboratory-result storage lifecycle/providers, transient cache layer, administration page, and public menu shortcodes are covered by lint and PHPCS at this stage and require manual smoke tests after review. Laboratory-result caching, automatic cross-catalog orchestration, the aggregate shortcode, remaining module frontend, expanded administration, and configuration are still planned.
+There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, current/upcoming/archive period classifier, laboratory-result filename parser, exact-period matcher, non-recursive scanner, validated catalog pipeline, and coordinated service-result invariants. WordPress-specific storage, providers, both transient layers, coordination service, administration page, and public menu shortcodes are covered by lint and PHPCS at this stage and require manual smoke tests after review. Laboratory-result administration, latest-result selection, the aggregate shortcode, remaining module frontend, and configuration are still planned.
 
 Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md) and the repository instructions in [AGENTS.md](AGENTS.md).
 

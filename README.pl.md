@@ -4,7 +4,7 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline i classifier okresów jadłospisów, integracja z WordPress uploads, serwis katalogu jadłospisów oparty na transientach, techniczna strona administracyjna, publiczne shortcode’y jadłospisów, standalone filesystem pipeline wyników badań oraz pierwsza integracja WordPress storage/provider dla badań są zaimplementowane. Cache, administracja, polityka najnowszego wyniku i publiczna prezentacja badań nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów i badań, WordPress storage/providery, skoordynowany cache katalogów powiązany z fingerprintem okresów, techniczna strona administracyjna jadłospisów oraz publiczne shortcode’y jadłospisów są zaimplementowane. Administracja badań, polityka najnowszego wyniku i publiczna prezentacja nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
@@ -23,6 +23,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Wyznaczanie ścieżki przez WordPress uploads API, tworzenie `zywienie-dla-zdrowia/jadlospisy/` podczas aktywacji oraz provider łączący ten katalog ze standalone pipeline.
 - Wyznaczanie przez WordPress uploads API i tworzenie podczas aktywacji katalogu `zywienie-dla-zdrowia/badania/` oraz provider przekazujący jawnie dostarczone, zwalidowane grupy jadłospisów do standalone pipeline badań.
 - Cache WordPress Transients API o czasie życia około pięciu minut oraz serwis katalogu udostępniający odczyt z cache i programowe operacje refresh/clear.
+- Skoordynowany WordPress service katalogu wyników badań z jawnymi stanami dostępności menu/lab oraz osobnym pięciominutowym transientem powiązanym z niezależnym od kolejności fingerprintem okresów jadłospisu.
 - Natywną stronę administracyjną WordPress „Status publikacji” ze statusem technicznym katalogu, licznikami okresów aktualnych/nadchodzących/archiwalnych względem daty witryny WordPress, bezpiecznymi opisami problemów i ręcznym odświeżaniem chronionym capability oraz nonce w przepływie POST/Redirect/GET.
 - Bezparametrowy shortcode `[zfdz_jadlospisy]`, który grupuje zwalidowanych kandydatów PDF według dokładnego okresu oraz renderuje linki do aktualnych i nadchodzących jadłospisów na podstawie WordPress uploads base URL.
 - Bezparametrowy shortcode `[zfdz_jadlospisy_archiwum]`, który renderuje archiwalne okresy jadłospisów od najnowszego i zachowuje grupowanie identycznych okresów.
@@ -34,7 +35,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 ### Planowane dla v1.0 (Planned for v1.0)
 
 - Jadłospisy.
-- Cache i serwis wyników badań, panel administratora, automatyczna koordynacja katalogów jadłospisów i badań, polityka wyboru najnowszego wyniku, publiczny shortcode, linki frontendu oraz konfiguracja Options API.
+- Panel administratora wyników badań, polityka wyboru najnowszego wyniku, publiczny shortcode, linki i zbiorczy frontend oraz konfiguracja Options API.
 - Materiały edukacyjne.
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
 - Dodatkowe zabezpieczenia serwerowe, antywirusowe lub sanitizacja dokumentów wymagane przez konkretne wdrożenie.
@@ -83,13 +84,21 @@ Podczas aktywacji plugin wyznacza bieżący uploads basedir przez `wp_get_upload
 
 Storage jadłospisów i wyników badań niezależnie wyznaczają swoje lokalizacje z tego samego WordPress uploads basedir. Aktywacja zapewnia oba katalogi po kolei. Błąd zatrzymuje aktywację krótkim tłumaczalnym komunikatem, ale nie cofa poprawnie utworzonego katalogu i nie usuwa dokumentów. Zwykłe ładowanie pluginu nie tworzy katalogów, nie skanuje dokumentów i nie buduje katalogu wynikowego. Dezaktywacja nie usuwa katalogów ani dokumentów, a ten etap nie dodaje cleanup przy uninstall.
 
-Provider jadłospisów wyznacza ścieżkę dopiero po jawnym `get_catalog()`. Provider wyników badań również wykonuje pracę wyłącznie na jawne żądanie i przyjmuje od konsumenta już zwalidowane grupy okresów jadłospisów. Nie pobiera automatycznie katalogu jadłospisów, nie tworzy brakującego katalogu podczas odczytu i nie dodaje cache wyników badań.
+Provider jadłospisów wyznacza ścieżkę dopiero po jawnym `get_catalog()`. Provider wyników badań również wykonuje pracę wyłącznie na jawne żądanie i przyjmuje od konsumenta już zwalidowane grupy okresów jadłospisów. Nie pobiera automatycznie katalogu jadłospisów i nie tworzy brakującego katalogu podczas odczytu. Skoordynowany service wyników badań odpowiada za późniejszą orkiestrację menu → badania, zachowując tę granicę providera.
 
 ## Cache katalogu jadłospisów
 
 Serwis katalogu WordPress zapisuje w cache wyłącznie poprawne obiekty `ZFDZ_Menu_Catalog_Result` na około pięć minut pod stałym, wersjonowanym kluczem transientu `zfdz_menu_catalog_v1`. Poprawny katalog może zawierać entry-level issues. Błędy katalogowe są zwracane bez cache’owania. Nieoczekiwana wartość transientu jest usuwana i traktowana jako cache miss. Programowy refresh usuwa poprzednią wartość przed ponownym zbudowaniem katalogu, a wyczyszczenie cache usuwa wyłącznie transient i nigdy nie skanuje ani nie zmienia filesystemu.
 
 Załadowanie pluginu ani utworzenie serwisu nie wykonuje operacji transientu lub filesystemu. Praca rozpoczyna się dopiero po jawnym pobraniu, odświeżeniu lub wyczyszczeniu katalogu przez konsumenta. Zaimplementowany przycisk administracyjny wykonuje jawny, chroniony refresh; zwykłe renderowanie strony korzysta z cache przez `get_catalog()`.
+
+## Skoordynowany cache katalogu wyników badań
+
+`ZFDZ_WordPress_Lab_Result_Catalog_Service` najpierw pobiera zwalidowany katalog jadłospisów przez jego istniejącego właściciela. Nieudany katalog menu daje stan `menu_catalog_unavailable`; cache i provider badań nie są wtedy wywoływane, a wynik nie udostępnia katalogu badań. Dla poprawnego menu powstaje deterministyczny fingerprint SHA-256 zależny wyłącznie od posortowanych par `menu_start_date`/`menu_end_date`. Pusta lista grup ma stabilny fingerprint, a kolejność wejściowa, filenames, nazwy, ścieżki, URL-e, locale i czas nie wpływają na wynik.
+
+Successful katalogi badań są cache’owane przez 300 sekund w osobnym transiencie `zfdz_lab_result_catalog_v1` razem z odpowiadającym fingerprintem menu. Zmiana okresów menu unieważnia stary cache przed ponownym zbudowaniem associations. Uszkodzony payload, inny fingerprint, failed catalog lub nieoczekiwana wartość są usuwane i traktowane jako cache miss. Successful catalog pozostaje cache’owalny, gdy zawiera entry-level issues lub associations unmatched.
+
+`success` oznacza techniczną dostępność obu katalogów; unmatched pozostaje prawidłowym association. `menu_catalog_unavailable` oznacza, że matching nie może zostać oceniony i lab catalog jest celowo nieobecny. `lab_catalog_unavailable` zachowuje successful menu catalog wraz z failed lab catalog. `refresh_result()` czyści lab cache, odświeża menu i świeżo buduje katalog badań jako jedną operację. `clear_cache()` usuwa wyłącznie `zfdz_lab_result_catalog_v1`; właścicielem `zfdz_menu_catalog_v1` pozostaje menu catalog service.
 
 Pliki będzie można dostarczać przez zewnętrznie skonfigurowane, ograniczone konto SFTP. Plugin nie implementuje SFTP, a administrator serwera odpowiada za ograniczenie konta wyłącznie do katalogu dokumentów. Credentials nie mogą być przechowywane w repozytorium. Pliki dostarczone poza WordPressem stają się widoczne po wygaśnięciu krótkiego cache lub wcześniej po jawnym programowym odświeżeniu.
 
@@ -137,7 +146,7 @@ Standalone parser odrzuca wejścia ścieżkowe, rozszerzenia inne niż PDF, bł�
 
 Matcher porównuje wyłącznie `menu_start_date` i `menu_end_date` z datami istniejącej `ZFDZ_Menu_Period_Group`. Brak dokładnego okresu tworzy association unmatched, a nie błąd parsera, walidacji PDF lub katalogu. Associations i finalne documents są deterministycznie uporządkowane według daty wyniku malejąco, dat okresu malejąco i oryginalnego filename rosnąco przez binarny `strcmp()`. Polityka wyboru najnowszego wyniku nie jest jeszcze zaimplementowana.
 
-Aktywacja tworzy teraz idempotentnie zarządzany katalog `badania/` pod WordPress uploads basedir. WordPress provider wyników badań wyznacza tę ścieżkę i przekazuje jawnie dostarczone, zwalidowane grupy okresów jadłospisów do standalone pipeline. Celowo nie pobiera sam katalogu jadłospisów. Cache/serwis wyników badań, panel, polityka najnowszego wyniku, shortcode, publiczne linki i konfiguracja Options API nie są jeszcze zaimplementowane. Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
+Aktywacja tworzy idempotentnie zarządzany katalog `badania/` pod WordPress uploads basedir. WordPress provider wyników badań wyznacza tę ścieżkę i przekazuje jawnie dostarczone, zwalidowane grupy okresów jadłospisów do standalone pipeline. Celowo nie pobiera sam katalogu jadłospisów. Skoordynowany service dostarcza te grupy, rozróżnia niedostępność menu i katalogu badań oraz cache’uje wyłącznie successful lab catalog dla dokładnego fingerprintu okresów menu. Panel, polityka najnowszego wyniku, shortcode, publiczne linki, zbiorczy frontend i konfiguracja Options API nie są jeszcze zaimplementowane. Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
 
 ## Development
 
@@ -150,7 +159,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu, classifier okresów aktualne/nadchodzące/archiwalne, parser nazw wyników badań, matcher dokładnego okresu oraz nierekurencyjny scanner i zwalidowany pipeline katalogu wyników badań. WordPress-specific lifecycle i providery storage jadłospisów oraz badań, warstwa cache transientów jadłospisów, strona administracyjna i publiczne shortcode’y jadłospisów są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Cache badań, automatyczna koordynacja katalogów, zbiorczy shortcode, frontend pozostałych modułów, rozbudowana administracja i konfiguracja nadal są planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu, classifier okresów aktualne/nadchodzące/archiwalne, parser nazw wyników badań, matcher dokładnego okresu, nierekurencyjny scanner, zwalidowany pipeline badań oraz inwarianty coordinated service result. WordPress-specific storage, providery, obie warstwy transientów, coordinated service, strona administracyjna i publiczne shortcode’y jadłospisów są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Administracja badań, latest-result, zbiorczy shortcode, frontend pozostałych modułów i konfiguracja nadal są planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 
