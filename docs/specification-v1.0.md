@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, Etap 12 — standalone laboratory-result filesystem catalog pipeline, Etap 13 — WordPress storage, activation lifecycle i provider katalogu wyników badań, Etap 14 — skoordynowany serwis menu/lab i fingerprint-aware cache wyników badań, Etap 15 — techniczny status badań i skoordynowane odświeżanie na istniejącej stronie administracyjnej, Etap 16 — standalone politykę wyboru najnowszego wyniku badania, Etap 17 — prezentację latest selection w panelu „Status publikacji”, Etap 18 — standalone techniczną politykę publicznej prezentacji wyniku, Etap 19 — WordPress result, resolver i cienki service integrujący tę politykę ze skoordynowaną dostępnością katalogów, Etap 20 — publiczny URL technicznego kandydata i bezparametrowy shortcode `[zfdz_badania]`, a Etap 21 — bezparametrowy aggregate shortcode `[zywienie_dla_zdrowia]` składający istniejące widoki menu i badania. Konfiguracja przez Options API oraz pozostałe shortcode’y modułów pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, Etap 12 — standalone laboratory-result filesystem catalog pipeline, Etap 13 — WordPress storage, activation lifecycle i provider katalogu wyników badań, Etap 14 — skoordynowany serwis menu/lab i fingerprint-aware cache wyników badań, Etap 15 — techniczny status badań i skoordynowane odświeżanie na istniejącej stronie administracyjnej, Etap 16 — standalone politykę wyboru najnowszego wyniku badania, Etap 17 — prezentację latest selection w panelu „Status publikacji”, Etap 18 — standalone techniczną politykę publicznej prezentacji wyniku, Etap 19 — WordPress result, resolver i cienki service integrujący tę politykę ze skoordynowaną dostępnością katalogów, Etap 20 — publiczny URL technicznego kandydata i bezparametrowy shortcode `[zfdz_badania]`, Etap 21 — bezparametrowy aggregate shortcode `[zywienie_dla_zdrowia]` składający istniejące widoki menu i badania, a Etap 22 — natywną konfigurację widoku publicznego przez WordPress Settings API. Pozostałe shortcode’y modułów nadal są planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -352,6 +352,25 @@ Aggregate nie używa `do_shortcode()`, nie parsuje ani nie modyfikuje child HTML
 
 `[zywienie_dla_zdrowia]` zawiera wyłącznie bieżący/nadchodzący widok `[zfdz_jadlospisy]` oraz publiczny stan `[zfdz_badania]`, w tej kolejności. Nie zawiera `[zfdz_jadlospisy_archiwum]` ani archiwum badań. Child shortcode’y pozostają niezależnie dostępne. Etap nie dodaje parametrów, Options API, CSS, JavaScriptu, publicznych komunikatów, URL-i, endpointów ani nowej logiki biznesowej. Istniejąca granica bezpieczeństwa publicznego WordPress uploads URL pozostaje bez zmian i nie stanowi kontroli dostępu.
 
+## Zaimplementowany zakres Etapu 22
+
+Etap 22 dodaje pod istniejącym menu pluginu strony **Status publikacji** i **Ustawienia**. Dotychczasowy slug, callback i chroniony handler odświeżania statusu pozostają bez zmian. Strona **Ustawienia** wymaga `manage_options` i korzysta wyłącznie z natywnego WordPress Settings API: `register_setting()`, sekcji i pól Settings API oraz formularza `options.php` z jego standardowym nonce. Nie istnieje niestandardowy save endpoint, reset action ani REST exposure opcji.
+
+Jedna tablicowa opcja `zfdz_settings_v1` ma dokładnie cztery boolean keys:
+
+- `overview_show_menus = true` — renderuje moduł `[zfdz_jadlospisy]` w aggregate;
+- `overview_show_lab_results = true` — renderuje moduł `[zfdz_badania]` w aggregate;
+- `menu_show_upcoming = true` — renderuje sekcję nadchodzących jadłospisów w `[zfdz_jadlospisy]` i aggregate;
+- `open_documents_new_tab = false` — dodaje `target="_blank" rel="noopener noreferrer"` do publicznych linków PDF menu, archiwum menu i wyniku badania.
+
+Brak opcji nie powoduje zapisu: defaulty są zwracane w pamięci i zachowują dokładne zachowanie Etapu 21. Odczyt częściowej tablicy uzupełnia brakujące znane klucze defaultami, błędny typ wraca do całego zestawu defaultów, a unknown keys nie wchodzą do znormalizowanego wyniku. Sanitizacja świadomego zapisu zwraca zawsze dokładnie cztery booleany. Surowa wartość checkboxa `1` oraz już znormalizowany boolean `true` dają `true`, dzięki czemu callback jest idempotentny; brak, `0`, boolean `false` i inne wartości dają `false`.
+
+Ustawienia overview sterują tylko kompozycją `[zywienie_dla_zdrowia]`. Wyłączony renderer nie jest wywoływany i nie dostaje pustego wrappera; wyłączenie obu modułów daje pusty string. Samodzielne shortcode’y pozostają dostępne. Ukrycie menu w aggregate nie usuwa zależności lab pipeline od menu catalog.
+
+`menu_show_upcoming` jest wyłącznie polityką prezentacji zastosowaną po pełnej, niezmienionej klasyfikacji. Nie filtruje katalogu, nie zmienia cache ani fingerprintu okresów, nie wpływa na matching wyników badań i nie zmienia `[zfdz_jadlospisy_archiwum]`. Ustawienie nowej karty zmienia wyłącznie atrybuty linków; `href`, uploads URL, kodowanie original filename i storage pozostają bez zmian. Bez `target="_blank"` nie jest dodawane `rel`, a każde użycie `_blank` ma dokładne `rel="noopener noreferrer"`.
+
+Strona informuje o `[zywienie_dla_zdrowia]`, `[zfdz_jadlospisy]`, `[zfdz_jadlospisy_archiwum]` i `[zfdz_badania]` oraz wyjaśnia, że ustawienia aggregate nie wyłączają osobnych shortcode’ów. Nie konfiguruje TTL, nazw katalogów, komunikatów, matchingu, latest selection, fallbacku ani decyzji publikacyjnej. Nie dodaje cache ustawień, transientu, CSS, JavaScriptu, cookies, telemetryki, endpointu pobierania lub cleanup przy uninstall. Oba cache katalogów zachowują TTL 300 sekund, a publiczny WordPress uploads URL nadal nie jest kontrolą dostępu.
+
 ## Cel
 
 Żywienie dla Zdrowia będzie wtyczką WordPress wspierającą prowadzenie publicznej sekcji:
@@ -522,7 +541,7 @@ Status techniczny ma przedstawiać wyłącznie dostępność katalogu i wykryte 
 ## Planowana architektura
 
 - Filesystem jako źródło dokumentów.
-- WordPress Options API do konfiguracji.
+- Zaimplementowany WordPress Options API do ograniczonej konfiguracji widoku publicznego.
 - Zaimplementowany cache katalogu jadłospisów przez WordPress Transients API.
 - Zaimplementowany cache katalogu badań przez osobny WordPress transient powiązany z fingerprintem okresów menu.
 - Brak własnych tabel bazy danych w v1.0.

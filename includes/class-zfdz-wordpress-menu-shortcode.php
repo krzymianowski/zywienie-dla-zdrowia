@@ -58,6 +58,7 @@ final class ZFDZ_WordPress_Menu_Shortcode {
 		$upcoming_groups  = array_reverse( $classification->get_upcoming_groups() );
 		$date_format      = get_option( 'date_format' );
 		$timezone         = wp_timezone();
+		$open_new_tab     = ZFDZ_WordPress_Settings::should_open_documents_in_new_tab();
 
 		if ( ! is_string( $date_format ) || '' === trim( $date_format ) ) {
 			$date_format = 'Y-m-d';
@@ -73,16 +74,20 @@ final class ZFDZ_WordPress_Menu_Shortcode {
 				__( 'Brak aktualnych jadłospisów.', 'zywienie-dla-zdrowia' ),
 				$menu_directory_url,
 				$date_format,
-				$timezone
+				$timezone,
+				$open_new_tab
 			);
-			self::render_section(
-				__( 'Nadchodzące jadłospisy', 'zywienie-dla-zdrowia' ),
-				$upcoming_groups,
-				__( 'Brak nadchodzących jadłospisów.', 'zywienie-dla-zdrowia' ),
-				$menu_directory_url,
-				$date_format,
-				$timezone
-			);
+			if ( ZFDZ_WordPress_Settings::should_show_upcoming_menus() ) {
+				self::render_section(
+					__( 'Nadchodzące jadłospisy', 'zywienie-dla-zdrowia' ),
+					$upcoming_groups,
+					__( 'Brak nadchodzących jadłospisów.', 'zywienie-dla-zdrowia' ),
+					$menu_directory_url,
+					$date_format,
+					$timezone,
+					$open_new_tab
+				);
+			}
 			?>
 		</div>
 		<?php
@@ -115,6 +120,7 @@ final class ZFDZ_WordPress_Menu_Shortcode {
 		$archived_groups  = $classification->get_archived_groups();
 		$date_format      = get_option( 'date_format' );
 		$timezone         = wp_timezone();
+		$open_new_tab     = ZFDZ_WordPress_Settings::should_open_documents_in_new_tab();
 
 		if ( ! is_string( $date_format ) || '' === trim( $date_format ) ) {
 			$date_format = 'Y-m-d';
@@ -130,7 +136,8 @@ final class ZFDZ_WordPress_Menu_Shortcode {
 				__( 'Brak archiwalnych jadłospisów.', 'zywienie-dla-zdrowia' ),
 				$menu_directory_url,
 				$date_format,
-				$timezone
+				$timezone,
+				$open_new_tab
 			);
 			?>
 		</div>
@@ -149,6 +156,7 @@ final class ZFDZ_WordPress_Menu_Shortcode {
 	 * @param string       $menu_directory_url Public menu directory URL.
 	 * @param string       $date_format        WordPress date format.
 	 * @param DateTimeZone $timezone           WordPress site timezone.
+	 * @param bool         $open_new_tab        Whether PDF links open in a new browser tab.
 	 * @return void
 	 */
 	private static function render_section(
@@ -157,7 +165,8 @@ final class ZFDZ_WordPress_Menu_Shortcode {
 		string $empty_message,
 		string $menu_directory_url,
 		string $date_format,
-		DateTimeZone $timezone
+		DateTimeZone $timezone,
+		bool $open_new_tab
 	): void {
 		?>
 		<section class="zfdz-menu-section">
@@ -166,7 +175,7 @@ final class ZFDZ_WordPress_Menu_Shortcode {
 				<p><?php echo esc_html( $empty_message ); ?></p>
 			<?php else : ?>
 				<?php foreach ( $groups as $group ) : ?>
-					<?php self::render_period( $group, $menu_directory_url, $date_format, $timezone ); ?>
+					<?php self::render_period( $group, $menu_directory_url, $date_format, $timezone, $open_new_tab ); ?>
 				<?php endforeach; ?>
 			<?php endif; ?>
 		</section>
@@ -180,13 +189,15 @@ final class ZFDZ_WordPress_Menu_Shortcode {
 	 * @param string                 $menu_directory_url Public menu directory URL.
 	 * @param string                 $date_format        WordPress date format.
 	 * @param DateTimeZone           $timezone           WordPress site timezone.
+	 * @param bool                   $open_new_tab        Whether PDF links open in a new browser tab.
 	 * @return void
 	 */
 	private static function render_period(
 		ZFDZ_Menu_Period_Group $group,
 		string $menu_directory_url,
 		string $date_format,
-		DateTimeZone $timezone
+		DateTimeZone $timezone,
+		bool $open_new_tab
 	): void {
 		$period_label = self::get_period_label( $group, $date_format, $timezone );
 		?>
@@ -202,7 +213,11 @@ final class ZFDZ_WordPress_Menu_Shortcode {
 						$document->get_name()
 					);
 					?>
-					<li><a href="<?php echo esc_url( $document_url ); ?>"><?php echo esc_html( $link_label ); ?></a></li>
+					<?php if ( $open_new_tab ) : ?>
+						<li><a href="<?php echo esc_url( $document_url ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $link_label ); ?></a></li>
+					<?php else : ?>
+						<li><a href="<?php echo esc_url( $document_url ); ?>"><?php echo esc_html( $link_label ); ?></a></li>
+					<?php endif; ?>
 				<?php endforeach; ?>
 			</ul>
 		</section>

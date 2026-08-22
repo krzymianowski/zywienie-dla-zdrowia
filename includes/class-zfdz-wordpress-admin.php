@@ -63,6 +63,15 @@ final class ZFDZ_WordPress_Admin {
 			array( ZFDZ_WordPress_Admin_Status_Page::class, 'render' ),
 			'dashicons-food'
 		);
+
+		add_submenu_page(
+			self::PAGE_SLUG,
+			__( 'Żywienie dla Zdrowia — Status publikacji', 'zywienie-dla-zdrowia' ),
+			__( 'Status publikacji', 'zywienie-dla-zdrowia' ),
+			self::CAPABILITY,
+			self::PAGE_SLUG,
+			array( ZFDZ_WordPress_Admin_Status_Page::class, 'render' )
+		);
 	}
 
 	/**

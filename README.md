@@ -4,7 +4,7 @@
 
 The repository is generic and is not tied to any particular organization or deployment.
 
-> **Development status:** version `0.1.0` is an early development version. The standalone menu and laboratory-result pipelines, deterministic latest laboratory-result selection, technical public-presentation policy and WordPress resolver/service integration, WordPress storage/providers, coordinated fingerprint-aware catalog caching, technical administration status with latest-result details, public module shortcodes, and the aggregate frontend shortcode are implemented. Remaining modules remain planned. This version is not production-ready.
+> **Development status:** version `0.1.0` is an early development version. The standalone menu and laboratory-result pipelines, deterministic latest laboratory-result selection, technical public-presentation policy and WordPress resolver/service integration, WordPress storage/providers, coordinated fingerprint-aware catalog caching, technical administration status with latest-result details, public module and aggregate shortcodes, and native public-view settings are implemented. Remaining modules remain planned. This version is not production-ready.
 
 ## Status
 
@@ -32,6 +32,7 @@ The repository is generic and is not tied to any particular organization or depl
 - The parameter-free `[zfdz_jadlospisy_archiwum]` shortcode, which renders archived menu periods newest first while preserving exact-period grouping.
 - The parameter-free `[zfdz_badania]` shortcode, which renders only a technical laboratory-result candidate with safe state-specific messages and an encoded link based on the WordPress uploads URL.
 - The parameter-free `[zywienie_dla_zdrowia]` aggregate shortcode, which renders the existing current/upcoming menu view followed by the existing laboratory-result view without duplicating their business logic.
+- A native **Żywienie dla Zdrowia → Ustawienia** page using one versioned Options API record for aggregate module visibility, upcoming-menu presentation, and public PDF new-tab behavior.
 - PHPUnit tests for the filename parser, filesystem scanner, PDF candidate validator, validated catalog pipeline, and period classifier without loading WordPress.
 - Development-only Composer tooling for PHP_CodeSniffer and WordPress Coding Standards.
 - Initial project, security, contribution, and product-specification documentation.
@@ -40,11 +41,9 @@ The repository is generic and is not tied to any particular organization or depl
 ### Planned for v1.0
 
 - Menus (jadłospisy).
-- Options API configuration.
 - Educational materials (materiały edukacyjne).
 - A configurable link to an external feedback form or survey.
 - Any additional server-side, malware-detection, or document-sanitization controls required by a deployment.
-- Configuration through the WordPress Options API.
 - Remaining module shortcodes, an expanded administration dashboard, and optional frontend styling.
 - Shortcodes listed in the [working v1.0 specification](docs/specification-v1.0.md).
 
@@ -173,7 +172,22 @@ Place the parameter-free aggregate shortcode on a WordPress page to render the c
 
 It directly calls the existing `[zfdz_jadlospisy]` renderer once and then the existing `[zfdz_badania]` renderer once, preserving their markup, messages, escaping, links, cache behavior, and independent state handling. The aggregate adds only static `zfdz-overview` wrapper elements; it does not parse child HTML, invoke the WordPress shortcode parser, inspect catalogs, select a latest result, build URLs, or add another cache.
 
-The menu archive remains available only through the separate `[zfdz_jadlospisy_archiwum]` shortcode and is not included in the aggregate view. All three child/module shortcodes remain independently usable. The aggregate accepts no attributes and adds no Options API configuration, CSS, JavaScript, archive-result view, endpoint, or new public message.
+The menu archive remains available only through the separate `[zfdz_jadlospisy_archiwum]` shortcode and is not included in the aggregate view. All three child/module shortcodes remain independently usable. The aggregate accepts no attributes and adds no CSS, JavaScript, archive-result view, endpoint, or new public message. Its two child modules can be independently hidden through the presentation settings without disabling their standalone shortcodes.
+
+## Public view settings
+
+**Żywienie dla Zdrowia → Ustawienia** is available to administrators with `manage_options`. Its standard WordPress Settings API form stores one array option, `zfdz_settings_v1`, with exactly four boolean keys:
+
+- `overview_show_menus` — show the menu module in `[zywienie_dla_zdrowia]`; default `true`.
+- `overview_show_lab_results` — show the laboratory-result module in `[zywienie_dla_zdrowia]`; default `true`.
+- `menu_show_upcoming` — render the upcoming section in `[zfdz_jadlospisy]` and therefore in the aggregate; default `true`.
+- `open_documents_new_tab` — add `target="_blank" rel="noopener noreferrer"` to public PDF links generated by `[zfdz_jadlospisy]`, `[zfdz_jadlospisy_archiwum]`, and `[zfdz_badania]`; default `false`.
+
+If the option does not exist, these defaults are returned in memory without writing to the database, preserving the Stage 21 public output. Partial stored arrays inherit defaults for missing known keys; malformed option values fall back safely, and unknown submitted keys are discarded. A raw checked value of `1` and an already normalized boolean `true` are accepted as selected, making the sanitize callback idempotent. Missing values, `0`, boolean `false`, and other values become `false` during an explicit save.
+
+Aggregate visibility does not disable `[zfdz_jadlospisy]` or `[zfdz_badania]`. Hiding upcoming menus is presentation-only: the full menu catalog is still classified, cached, fingerprinted, and supplied to laboratory matching, and `[zfdz_jadlospisy_archiwum]` is unchanged. The new-tab setting changes only link attributes, never the URL, filename encoding, or storage behavior.
+
+The page also lists the four available shortcodes. Saving uses the native Settings API capability and nonce flow; there is no custom save endpoint, reset action, REST exposure, settings transient, or configurable cache lifetime. Both catalog TTLs remain fixed at 300 seconds. Managed directory names, matching/latest/fallback rules, publication decisions, and public messages are not configurable. This stage adds no uninstall cleanup; data-retention behavior requires a separate explicit policy.
 
 ## Standalone laboratory-result filesystem pipeline
 
@@ -189,7 +203,7 @@ The standalone public presentation policy consumes only that immutable latest se
 
 Catalog unavailability is deliberately outside this standalone policy. The WordPress public-presentation resolver maps `menu_catalog_unavailable` and `lab_catalog_unavailable` to distinct `UNAVAILABLE` reasons without running the selector or policy. For a successful coordinated catalog it passes associations through the selector and policy, producing `NO_RESULT`, `BLOCKED_UNMATCHED`, or `CANDIDATE`. `UNAVAILABLE` is not `NO_RESULT`, a blocked result exposes no document, and a latest unmatched result never falls back to an older match. The resolver does not inspect entry-level issues, so a latest matched result remains a technical candidate even when an older association is unmatched.
 
-Activation idempotently creates the managed `badania/` directory below the WordPress uploads base directory. The WordPress laboratory-result catalog provider resolves that path and passes explicitly supplied validated menu-period groups into the standalone pipeline. It deliberately does not fetch the menu catalog itself. The coordinated service supplies those groups, distinguishes menu and laboratory directory failures, caches only successful laboratory catalogs for the exact menu-period fingerprint, and supplies the technical administration status. The administration page derives the latest selection during successful rendering. Separately, the public-presentation service obtains one coordinated result and delegates all mapping to the deterministic resolver; it performs no direct WordPress API calls and adds no separate cache. The `[zfdz_badania]` shortcode consumes that result and resolves a public URL only for `CANDIDATE`; `[zywienie_dla_zdrowia]` composes its unchanged output after the unchanged current/upcoming menu renderer. Options API configuration is not implemented. Associating, selecting, or identifying a technical candidate is a metadata operation only. The plugin does not interpret laboratory content, assess the result, or confirm compliance with norms or legal requirements.
+Activation idempotently creates the managed `badania/` directory below the WordPress uploads base directory. The WordPress laboratory-result catalog provider resolves that path and passes explicitly supplied validated menu-period groups into the standalone pipeline. It deliberately does not fetch the menu catalog itself. The coordinated service supplies those groups, distinguishes menu and laboratory directory failures, caches only successful laboratory catalogs for the exact menu-period fingerprint, and supplies the technical administration status. The administration page derives the latest selection during successful rendering. Separately, the public-presentation service obtains one coordinated result and delegates all mapping to the deterministic resolver; it performs no direct WordPress API calls and adds no separate cache. The `[zfdz_badania]` shortcode consumes that result and resolves a public URL only for `CANDIDATE`; `[zywienie_dla_zdrowia]` conditionally composes the configured child views. Public-view settings do not modify association, latest-selection, or presentation-policy contracts. Associating, selecting, or identifying a technical candidate is a metadata operation only. The plugin does not interpret laboratory content, assess the result, or confirm compliance with norms or legal requirements.
 
 ## Development
 
@@ -202,7 +216,7 @@ composer lint
 composer test
 ```
 
-There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, current/upcoming/archive period classifier, laboratory-result filename parser, exact-period matcher, latest-result selector, public presentation policy, non-recursive scanner, validated catalog pipeline, coordinated service-result invariants, WordPress public-presentation result/resolver mapping, and candidate-only public URL resolution. WordPress-specific storage, providers, both transient layers, coordination and public-presentation services, administration page, and public shortcodes—including the thin aggregate renderer—are covered by lint and PHPCS at this stage and require manual smoke tests after review. Options API configuration remains planned.
+There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, current/upcoming/archive period classifier, laboratory-result filename parser, exact-period matcher, latest-result selector, public presentation policy, non-recursive scanner, validated catalog pipeline, coordinated service-result invariants, WordPress public-presentation result/resolver mapping, candidate-only public URL resolution, and pure settings defaults/sanitization. WordPress-specific storage, providers, both transient layers, coordination and public-presentation services, administration and settings pages, and public shortcodes—including the thin aggregate renderer—are covered by lint and PHPCS at this stage and require manual smoke tests after review.
 
 Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md) and the repository instructions in [AGENTS.md](AGENTS.md).
 

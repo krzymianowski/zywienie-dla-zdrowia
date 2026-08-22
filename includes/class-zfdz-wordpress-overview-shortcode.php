@@ -36,16 +36,20 @@ final class ZFDZ_WordPress_Overview_Shortcode {
 	 * @return string
 	 */
 	public static function render(): string {
-		$menu_markup       = ZFDZ_WordPress_Menu_Shortcode::render();
-		$lab_result_markup = ZFDZ_WordPress_Lab_Result_Shortcode::render();
+		$markup = '';
 
-		return '<div class="zfdz-overview">'
-			. '<div class="zfdz-overview-menus">'
-			. $menu_markup
-			. '</div>'
-			. '<div class="zfdz-overview-lab-result">'
-			. $lab_result_markup
-			. '</div>'
-			. '</div>';
+		if ( ZFDZ_WordPress_Settings::should_show_menus_in_overview() ) {
+			$markup .= '<div class="zfdz-overview-menus">'
+				. ZFDZ_WordPress_Menu_Shortcode::render()
+				. '</div>';
+		}
+
+		if ( ZFDZ_WordPress_Settings::should_show_lab_results_in_overview() ) {
+			$markup .= '<div class="zfdz-overview-lab-result">'
+				. ZFDZ_WordPress_Lab_Result_Shortcode::render()
+				. '</div>';
+		}
+
+		return '' === $markup ? '' : '<div class="zfdz-overview">' . $markup . '</div>';
 	}
 }

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Native WordPress Settings API integration under **Żywienie dla Zdrowia → Ustawienia**, backed by the single `zfdz_settings_v1` option for aggregate module visibility, upcoming-menu visibility, and public PDF new-tab behavior.
 - Public parameter-free `[zywienie_dla_zdrowia]` aggregate shortcode composing the existing current/upcoming menu and laboratory-result renderers in that order.
 - Public parameter-free `[zfdz_badania]` shortcode rendering only the current technical laboratory-result candidate, with state-specific safe messages and an encoded WordPress uploads URL.
 - WordPress laboratory-result uploads `baseurl` resolution and a standalone candidate-only public URL resolver using the parser-approved original filename as one percent-encoded path segment.

@@ -79,6 +79,8 @@ final class ZFDZ_WordPress_Lab_Result_Shortcode {
 			return self::get_candidate_url_unavailable_markup();
 		}
 
+		$open_new_tab = ZFDZ_WordPress_Settings::should_open_documents_in_new_tab();
+
 		ob_start();
 		?>
 		<div class="zfdz-lab-result">
@@ -103,7 +105,11 @@ final class ZFDZ_WordPress_Lab_Result_Shortcode {
 						?>
 					</dd>
 				</dl>
-				<p><a href="<?php echo esc_url( $document_url ); ?>"><?php echo esc_html__( 'Zobacz wynik badania', 'zywienie-dla-zdrowia' ); ?></a></p>
+				<?php if ( $open_new_tab ) : ?>
+					<p><a href="<?php echo esc_url( $document_url ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html__( 'Zobacz wynik badania', 'zywienie-dla-zdrowia' ); ?></a></p>
+				<?php else : ?>
+					<p><a href="<?php echo esc_url( $document_url ); ?>"><?php echo esc_html__( 'Zobacz wynik badania', 'zywienie-dla-zdrowia' ); ?></a></p>
+				<?php endif; ?>
 			</section>
 		</div>
 		<?php

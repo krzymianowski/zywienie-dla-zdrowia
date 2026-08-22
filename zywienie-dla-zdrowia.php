@@ -15,6 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/includes/class-zfdz-wordpress-settings.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-document.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-filename-parse-result.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-filename-parser.php';
@@ -60,11 +61,13 @@ require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-shortcode.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-overview-shortcode.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-admin-status-page.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-admin.php';
+require_once __DIR__ . '/includes/class-zfdz-wordpress-settings-page.php';
 
 ZFDZ_WordPress_Menu_Shortcode::register();
 ZFDZ_WordPress_Lab_Result_Shortcode::register();
 ZFDZ_WordPress_Overview_Shortcode::register();
 ZFDZ_WordPress_Admin::register();
+ZFDZ_WordPress_Settings_Page::register();
 
 register_activation_hook(
 	__FILE__,
