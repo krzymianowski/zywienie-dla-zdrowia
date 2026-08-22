@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Laboratory-result technical status on the existing WordPress “Status publikacji” page, including validated, matched, unmatched, and issue counts with safe details.
+- Coordinated protected administration refresh for menu and laboratory-result catalogs through the existing POST/nonce/PRG endpoint.
 - Coordinated WordPress laboratory-result catalog service with distinct success, menu-unavailable, and laboratory-unavailable result states.
 - Fingerprint-aware laboratory-result Transients API cache using the fixed `zfdz_lab_result_catalog_v1` key and a 300-second TTL.
 - Order-independent SHA-256 menu-period fingerprinting based only on menu start/end dates, with coordinated refresh and lab-only cache clearing.

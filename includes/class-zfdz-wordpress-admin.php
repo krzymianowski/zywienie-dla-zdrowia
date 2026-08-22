@@ -21,17 +21,17 @@ final class ZFDZ_WordPress_Admin {
 	public const PAGE_SLUG = 'zywienie-dla-zdrowia';
 
 	/**
-	 * Admin-post action used to refresh the menu catalog.
+	 * Admin-post action used to refresh coordinated publication data.
 	 */
 	public const REFRESH_ACTION = 'zfdz_refresh_menu_catalog';
 
 	/**
-	 * Nonce action used to refresh the menu catalog.
+	 * Nonce action used to refresh coordinated publication data.
 	 */
 	public const REFRESH_NONCE_ACTION = 'zfdz_refresh_menu_catalog';
 
 	/**
-	 * Nonce field used to refresh the menu catalog.
+	 * Nonce field used to refresh coordinated publication data.
 	 */
 	public const REFRESH_NONCE_FIELD = 'zfdz_refresh_menu_catalog_nonce';
 
@@ -66,23 +66,23 @@ final class ZFDZ_WordPress_Admin {
 	}
 
 	/**
-	 * Refreshes the menu catalog after capability and nonce verification.
+	 * Refreshes coordinated menu and laboratory result data after capability and nonce verification.
 	 *
 	 * @return void
 	 */
 	public static function handle_refresh(): void {
 		if ( ! current_user_can( self::CAPABILITY ) ) {
-			wp_die( esc_html__( 'Nie masz uprawnień do odświeżania katalogu jadłospisów.', 'zywienie-dla-zdrowia' ) );
+			wp_die( esc_html__( 'Nie masz uprawnień do odświeżania danych publikacji.', 'zywienie-dla-zdrowia' ) );
 		}
 
 		if ( ! self::is_post_request() ) {
-			wp_die( esc_html__( 'Odświeżanie katalogu jadłospisów wymaga żądania POST.', 'zywienie-dla-zdrowia' ) );
+			wp_die( esc_html__( 'Odświeżanie danych publikacji wymaga żądania POST.', 'zywienie-dla-zdrowia' ) );
 		}
 
 		check_admin_referer( self::REFRESH_NONCE_ACTION, self::REFRESH_NONCE_FIELD );
 
-		$catalog       = ZFDZ_WordPress_Menu_Catalog_Service::create_default()->refresh_catalog();
-		$refresh_state = $catalog->is_successful() ? 'success' : 'error';
+		$result        = ZFDZ_WordPress_Lab_Result_Catalog_Service::create_default()->refresh_result();
+		$refresh_state = $result->is_successful() ? 'success' : 'error';
 		$redirect_url  = add_query_arg(
 			'zfdz_refresh',
 			$refresh_state,

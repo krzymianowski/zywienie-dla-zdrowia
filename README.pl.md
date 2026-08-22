@@ -4,7 +4,7 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów i badań, WordPress storage/providery, skoordynowany cache katalogów powiązany z fingerprintem okresów, techniczna strona administracyjna jadłospisów oraz publiczne shortcode’y jadłospisów są zaimplementowane. Administracja badań, polityka najnowszego wyniku i publiczna prezentacja nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline jadłospisów i badań, WordPress storage/providery, skoordynowany cache katalogów powiązany z fingerprintem okresów, techniczny status administracyjny obu modułów oraz publiczne shortcode’y jadłospisów są zaimplementowane. Polityka najnowszego wyniku i publiczna prezentacja badań nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
@@ -24,7 +24,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Wyznaczanie przez WordPress uploads API i tworzenie podczas aktywacji katalogu `zywienie-dla-zdrowia/badania/` oraz provider przekazujący jawnie dostarczone, zwalidowane grupy jadłospisów do standalone pipeline badań.
 - Cache WordPress Transients API o czasie życia około pięciu minut oraz serwis katalogu udostępniający odczyt z cache i programowe operacje refresh/clear.
 - Skoordynowany WordPress service katalogu wyników badań z jawnymi stanami dostępności menu/lab oraz osobnym pięciominutowym transientem powiązanym z niezależnym od kolejności fingerprintem okresów jadłospisu.
-- Natywną stronę administracyjną WordPress „Status publikacji” ze statusem technicznym katalogu, licznikami okresów aktualnych/nadchodzących/archiwalnych względem daty witryny WordPress, bezpiecznymi opisami problemów i ręcznym odświeżaniem chronionym capability oraz nonce w przepływie POST/Redirect/GET.
+- Natywną stronę administracyjną WordPress „Status publikacji” z osobnymi statusami technicznymi jadłospisów i wyników badań, bezpiecznym raportowaniem issues oraz associations unmatched i skoordynowanym odświeżaniem chronionym capability oraz nonce w przepływie POST/Redirect/GET.
 - Bezparametrowy shortcode `[zfdz_jadlospisy]`, który grupuje zwalidowanych kandydatów PDF według dokładnego okresu oraz renderuje linki do aktualnych i nadchodzących jadłospisów na podstawie WordPress uploads base URL.
 - Bezparametrowy shortcode `[zfdz_jadlospisy_archiwum]`, który renderuje archiwalne okresy jadłospisów od najnowszego i zachowuje grupowanie identycznych okresów.
 - Testy PHPUnit parsera nazw, scannera filesystemu, validatora kandydatów PDF, pipeline katalogu i classifiera okresów bez uruchamiania WordPressa.
@@ -35,7 +35,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 ### Planowane dla v1.0 (Planned for v1.0)
 
 - Jadłospisy.
-- Panel administratora wyników badań, polityka wyboru najnowszego wyniku, publiczny shortcode, linki i zbiorczy frontend oraz konfiguracja Options API.
+- Polityka wyboru najnowszego wyniku badania, publiczny shortcode, linki i zbiorczy frontend oraz konfiguracja Options API.
 - Materiały edukacyjne.
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
 - Dodatkowe zabezpieczenia serwerowe, antywirusowe lub sanitizacja dokumentów wymagane przez konkretne wdrożenie.
@@ -104,11 +104,13 @@ Pliki będzie można dostarczać przez zewnętrznie skonfigurowane, ograniczone 
 
 ## Strona administracyjna Status publikacji
 
-Administratorzy z capability `manage_options` mogą otworzyć **Żywienie dla Zdrowia → Status publikacji**. Strona pobiera dane wyłącznie przez `ZFDZ_WordPress_Menu_Catalog_Service`, pokazuje techniczny status modułu jadłospisów, liczbę dokumentów, okresów i problemów oraz bezpieczne polskie opisy wykrytych issues. Nie pokazuje ścieżek filesystemu ani linków do dokumentów.
+Administratorzy z capability `manage_options` mogą otworzyć **Żywienie dla Zdrowia → Status publikacji**. Strona pobiera jeden skoordynowany wynik przez `ZFDZ_WordPress_Lab_Result_Catalog_Service`, używa zawartego w nim menu catalog dla dotychczasowej sekcji jadłospisów i osobno pokazuje techniczny status wyników badań. Nie pokazuje ścieżek filesystemu ani linków do dokumentów.
 
 Dla poprawnego katalogu strona pobiera datę odniesienia jeden raz przez WordPress `current_datetime()` i klasyfikuje istniejące grupy okresów jako aktualne (`start_date <= today <= end_date`), nadchodzące (`start_date > today`) albo archiwalne (`end_date < today`). Granice są inkluzywne. Panel pokazuje datę odniesienia, trzy liczniki okresów oraz osobną informację, czy co najmniej jeden okres jadłospisu obowiązuje dzisiaj. Nie wyświetla jeszcze list okresów ani dokumentów.
 
-Ręczne odświeżanie używa klasycznego przepływu POST/Redirect/GET przez `admin-post.php`. Handler sprawdza `manage_options` i nonce WordPressa przed wywołaniem `refresh_catalog()`, a następnie przekierowuje tylko z dozwolonym statusem success albo error. Strona nie dodaje własnego CSS ani JavaScriptu.
+Sekcja wyników badań pokazuje liczbę zwalidowanych dokumentów, wszystkich associations, associations matched i unmatched oraz entry-level issues. Pusty successful lab catalog ma status techniczny **OK**. Successful catalog z issues lub unmatched wymaga uwagi, ale nie jest directory failure. Unmatched oznacza wyłącznie brak dokładnego okresu menu i nie jest oceną medyczną. `menu_catalog_unavailable` uniemożliwia ocenę powiązań i pokazuje liczniki badań jako niedostępne, a `lab_catalog_unavailable` zachowuje działającą sekcję menu oraz bezpiecznie opisuje błąd katalogu badań.
+
+Ręczne odświeżanie używa klasycznego przepływu POST/Redirect/GET przez `admin-post.php`. Handler sprawdza `manage_options` i istniejący nonce WordPressa przed wywołaniem skoordynowanego `refresh_result()`, a następnie przekierowuje tylko z dozwolonym statusem success albo error. Jedna operacja odświeża menu i badania. Zwykłe renderowanie używa `get_result()` i respektuje oba cache. Strona nie dodaje własnego CSS ani JavaScriptu.
 
 Na tym etapie status techniczny **OK** oznacza wyłącznie, że katalog jest technicznie dostępny i nie zawiera problemów scannera lub validatora. Brak aktualnego okresu jest raportowany osobno i nie zmienia statusu technicznego na błąd. Żaden z tych statusów nie oznacza publikacji wszystkich wymaganych materiałów ani zgodności organizacji z prawem.
 
@@ -146,7 +148,7 @@ Standalone parser odrzuca wejścia ścieżkowe, rozszerzenia inne niż PDF, bł�
 
 Matcher porównuje wyłącznie `menu_start_date` i `menu_end_date` z datami istniejącej `ZFDZ_Menu_Period_Group`. Brak dokładnego okresu tworzy association unmatched, a nie błąd parsera, walidacji PDF lub katalogu. Associations i finalne documents są deterministycznie uporządkowane według daty wyniku malejąco, dat okresu malejąco i oryginalnego filename rosnąco przez binarny `strcmp()`. Polityka wyboru najnowszego wyniku nie jest jeszcze zaimplementowana.
 
-Aktywacja tworzy idempotentnie zarządzany katalog `badania/` pod WordPress uploads basedir. WordPress provider wyników badań wyznacza tę ścieżkę i przekazuje jawnie dostarczone, zwalidowane grupy okresów jadłospisów do standalone pipeline. Celowo nie pobiera sam katalogu jadłospisów. Skoordynowany service dostarcza te grupy, rozróżnia niedostępność menu i katalogu badań oraz cache’uje wyłącznie successful lab catalog dla dokładnego fingerprintu okresów menu. Panel, polityka najnowszego wyniku, shortcode, publiczne linki, zbiorczy frontend i konfiguracja Options API nie są jeszcze zaimplementowane. Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
+Aktywacja tworzy idempotentnie zarządzany katalog `badania/` pod WordPress uploads basedir. WordPress provider wyników badań wyznacza tę ścieżkę i przekazuje jawnie dostarczone, zwalidowane grupy okresów jadłospisów do standalone pipeline. Celowo nie pobiera sam katalogu jadłospisów. Skoordynowany service dostarcza te grupy, rozróżnia niedostępność menu i katalogu badań, cache’uje wyłącznie successful lab catalog dla dokładnego fingerprintu okresów menu i zasila techniczny status administracyjny. Polityka najnowszego wyniku, shortcode, publiczne linki, zbiorczy frontend i konfiguracja Options API nie są jeszcze zaimplementowane. Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
 
 ## Development
 
@@ -159,7 +161,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu, classifier okresów aktualne/nadchodzące/archiwalne, parser nazw wyników badań, matcher dokładnego okresu, nierekurencyjny scanner, zwalidowany pipeline badań oraz inwarianty coordinated service result. WordPress-specific storage, providery, obie warstwy transientów, coordinated service, strona administracyjna i publiczne shortcode’y jadłospisów są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Administracja badań, latest-result, zbiorczy shortcode, frontend pozostałych modułów i konfiguracja nadal są planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu, classifier okresów aktualne/nadchodzące/archiwalne, parser nazw wyników badań, matcher dokładnego okresu, nierekurencyjny scanner, zwalidowany pipeline badań oraz inwarianty coordinated service result. WordPress-specific storage, providery, obie warstwy transientów, coordinated service, strona administracyjna i publiczne shortcode’y jadłospisów są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Latest-result, zbiorczy shortcode, frontend pozostałych modułów i konfiguracja nadal są planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 

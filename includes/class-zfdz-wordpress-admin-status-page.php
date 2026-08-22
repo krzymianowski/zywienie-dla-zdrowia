@@ -6,7 +6,7 @@
  */
 
 /**
- * Renders the technical publication status for the menu module.
+ * Renders technical publication status for menu and laboratory result modules.
  */
 final class ZFDZ_WordPress_Admin_Status_Page {
 
@@ -20,13 +20,14 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 			wp_die( esc_html__( 'Nie masz uprawnień do wyświetlenia tej strony.', 'zywienie-dla-zdrowia' ) );
 		}
 
-		$catalog        = ZFDZ_WordPress_Menu_Catalog_Service::create_default()->get_catalog();
-		$document_count = count( $catalog->get_documents() );
-		$group_count    = count( $catalog->get_groups() );
-		$issue_count    = count( $catalog->get_issues() );
-		$status         = self::get_status( $catalog, $issue_count );
-		$classification = null;
-		$current_date   = '';
+		$coordinated_result = ZFDZ_WordPress_Lab_Result_Catalog_Service::create_default()->get_result();
+		$catalog            = $coordinated_result->get_menu_catalog();
+		$document_count     = count( $catalog->get_documents() );
+		$group_count        = count( $catalog->get_groups() );
+		$issue_count        = count( $catalog->get_issues() );
+		$status             = self::get_status( $catalog, $issue_count );
+		$classification     = null;
+		$current_date       = '';
 
 		if ( $catalog->is_successful() ) {
 			$current_datetime = current_datetime();
@@ -73,13 +74,14 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 			<?php endif; ?>
 
 			<?php self::render_issues( $catalog->get_issues() ); ?>
+			<?php self::render_lab_result_status( $coordinated_result ); ?>
 
-			<h2><?php esc_html_e( 'Odświeżenie katalogu', 'zywienie-dla-zdrowia' ); ?></h2>
-			<p class="description"><?php esc_html_e( 'Wymusza ponowne odczytanie katalogu jadłospisów z pominięciem cache.', 'zywienie-dla-zdrowia' ); ?></p>
+			<h2><?php esc_html_e( 'Odświeżenie danych', 'zywienie-dla-zdrowia' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'Wymusza ponowne odczytanie katalogów jadłospisów i wyników badań z pominięciem cache.', 'zywienie-dla-zdrowia' ); ?></p>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="<?php echo esc_attr( ZFDZ_WordPress_Admin::REFRESH_ACTION ); ?>">
 				<?php wp_nonce_field( ZFDZ_WordPress_Admin::REFRESH_NONCE_ACTION, ZFDZ_WordPress_Admin::REFRESH_NONCE_FIELD ); ?>
-				<?php submit_button( __( 'Odśwież', 'zywienie-dla-zdrowia' ), 'secondary' ); ?>
+				<?php submit_button( __( 'Odśwież status', 'zywienie-dla-zdrowia' ), 'secondary' ); ?>
 			</form>
 		</div>
 		<?php
@@ -159,6 +161,229 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 	}
 
 	/**
+	 * Renders the technical status of coordinated laboratory results.
+	 *
+	 * @param ZFDZ_WordPress_Lab_Result_Catalog_Service_Result $result Coordinated catalog result.
+	 * @return void
+	 */
+	private static function render_lab_result_status( ZFDZ_WordPress_Lab_Result_Catalog_Service_Result $result ): void {
+		$lab_catalog = $result->get_lab_catalog();
+		?>
+		<h2><?php esc_html_e( 'Wyniki badań laboratoryjnych', 'zywienie-dla-zdrowia' ); ?></h2>
+		<?php
+		if ( ZFDZ_WordPress_Lab_Result_Catalog_Service_Result::STATUS_MENU_CATALOG_UNAVAILABLE === $result->get_status() ) {
+			self::render_lab_error_status(
+				__( 'Nie można ocenić powiązania wyników badań, ponieważ katalog jadłospisów jest niedostępny.', 'zywienie-dla-zdrowia' )
+			);
+			return;
+		}
+
+		if (
+			ZFDZ_WordPress_Lab_Result_Catalog_Service_Result::STATUS_LAB_CATALOG_UNAVAILABLE === $result->get_status()
+			|| ! $lab_catalog instanceof ZFDZ_Lab_Result_Catalog_Result
+		) {
+			$error_code = $lab_catalog instanceof ZFDZ_Lab_Result_Catalog_Result
+				? $lab_catalog->get_directory_error_code()
+				: null;
+
+			self::render_lab_error_status( self::get_lab_directory_error_message( $error_code ) );
+			return;
+		}
+
+		$associations           = $lab_catalog->get_associations();
+		$unmatched_associations = array();
+		$matched_count          = 0;
+
+		foreach ( $associations as $association ) {
+			if ( $association->is_matched() ) {
+				++$matched_count;
+				continue;
+			}
+
+			$unmatched_associations[] = $association;
+		}
+
+		$document_count    = count( $lab_catalog->get_documents() );
+		$association_count = count( $associations );
+		$unmatched_count   = count( $unmatched_associations );
+		$issue_count       = count( $lab_catalog->get_issues() );
+		$status            = self::get_lab_result_status( $issue_count, $unmatched_count );
+		?>
+		<div class="notice <?php echo esc_attr( $status['notice_class'] ); ?> inline">
+			<p>
+				<strong><?php esc_html_e( 'Status techniczny:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( $status['label'] ); ?>
+			</p>
+		</div>
+
+		<?php self::render_lab_counts( $document_count, $association_count, $matched_count, $unmatched_count, $issue_count ); ?>
+		<?php self::render_unmatched_lab_results( $unmatched_associations ); ?>
+		<?php self::render_lab_issues( $lab_catalog->get_issues() ); ?>
+		<?php
+	}
+
+	/**
+	 * Renders an unavailable laboratory result status without suggesting known zero counts.
+	 *
+	 * @param string $message Safe translated status message.
+	 * @return void
+	 */
+	private static function render_lab_error_status( string $message ): void {
+		?>
+		<div class="notice notice-error inline">
+			<p>
+				<strong><?php esc_html_e( 'Status techniczny:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php esc_html_e( 'Błąd', 'zywienie-dla-zdrowia' ); ?>
+			</p>
+		</div>
+		<p><?php echo esc_html( $message ); ?></p>
+		<?php self::render_lab_counts( null, null, null, null, null ); ?>
+		<?php
+	}
+
+	/**
+	 * Renders laboratory result counters or unavailable labels.
+	 *
+	 * @param int|null $document_count    Validated document count.
+	 * @param int|null $association_count Association count.
+	 * @param int|null $matched_count     Matched association count.
+	 * @param int|null $unmatched_count   Unmatched association count.
+	 * @param int|null $issue_count       Entry-level issue count.
+	 * @return void
+	 */
+	private static function render_lab_counts(
+		?int $document_count,
+		?int $association_count,
+		?int $matched_count,
+		?int $unmatched_count,
+		?int $issue_count
+	): void {
+		?>
+		<ul>
+			<li>
+				<strong><?php esc_html_e( 'Dokumenty:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( self::get_count_display_value( $document_count ) ); ?>
+			</li>
+			<li>
+				<strong><?php esc_html_e( 'Powiązania:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( self::get_count_display_value( $association_count ) ); ?>
+			</li>
+			<li>
+				<strong><?php esc_html_e( 'Powiązane:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( self::get_count_display_value( $matched_count ) ); ?>
+			</li>
+			<li>
+				<strong><?php esc_html_e( 'Niepowiązane:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( self::get_count_display_value( $unmatched_count ) ); ?>
+			</li>
+			<li>
+				<strong><?php esc_html_e( 'Problemy:', 'zywienie-dla-zdrowia' ); ?></strong>
+				<?php echo esc_html( self::get_count_display_value( $issue_count ) ); ?>
+			</li>
+		</ul>
+		<?php
+	}
+
+	/**
+	 * Returns a safe counter display value.
+	 *
+	 * @param int|null $count Known count or null when unavailable.
+	 * @return string
+	 */
+	private static function get_count_display_value( ?int $count ): string {
+		return null === $count
+			? __( 'Niedostępne', 'zywienie-dla-zdrowia' )
+			: (string) $count;
+	}
+
+	/**
+	 * Returns the technical status for a successful laboratory result catalog.
+	 *
+	 * @param int $issue_count     Entry-level issue count.
+	 * @param int $unmatched_count Unmatched association count.
+	 * @return array{label: string, notice_class: string}
+	 */
+	private static function get_lab_result_status( int $issue_count, int $unmatched_count ): array {
+		if ( 0 < $issue_count || 0 < $unmatched_count ) {
+			return array(
+				'label'        => __( 'Wymaga uwagi', 'zywienie-dla-zdrowia' ),
+				'notice_class' => 'notice-warning',
+			);
+		}
+
+		return array(
+			'label'        => __( 'OK', 'zywienie-dla-zdrowia' ),
+			'notice_class' => 'notice-success',
+		);
+	}
+
+	/**
+	 * Renders unmatched laboratory result documents without labeling them medically invalid.
+	 *
+	 * @param ZFDZ_Lab_Result_Menu_Association[] $associations Unmatched associations.
+	 * @return void
+	 */
+	private static function render_unmatched_lab_results( array $associations ): void {
+		if ( array() === $associations ) {
+			return;
+		}
+		?>
+		<h3><?php esc_html_e( 'Niepowiązane wyniki', 'zywienie-dla-zdrowia' ); ?></h3>
+		<p><?php esc_html_e( 'Poniższe wyniki nie mają dokładnie odpowiadającego okresu jadłospisu.', 'zywienie-dla-zdrowia' ); ?></p>
+		<table class="widefat striped">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'Dokument', 'zywienie-dla-zdrowia' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Okres jadłospisu', 'zywienie-dla-zdrowia' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Data wyniku', 'zywienie-dla-zdrowia' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $associations as $association ) : ?>
+					<?php $document = $association->get_document(); ?>
+					<tr>
+						<td><?php echo esc_html( $document->get_name() ); ?></td>
+						<td><?php echo esc_html( $document->get_menu_start_date() . ' – ' . $document->get_menu_end_date() ); ?></td>
+						<td><?php echo esc_html( $document->get_result_date() ); ?></td>
+					</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php
+	}
+
+	/**
+	 * Renders laboratory result entry-level issues.
+	 *
+	 * @param ZFDZ_Lab_Result_Scan_Issue[] $issues Laboratory result issues.
+	 * @return void
+	 */
+	private static function render_lab_issues( array $issues ): void {
+		if ( array() === $issues ) {
+			return;
+		}
+		?>
+		<h3><?php esc_html_e( 'Problemy wyników badań', 'zywienie-dla-zdrowia' ); ?></h3>
+		<table class="widefat striped">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'Plik / wpis', 'zywienie-dla-zdrowia' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Problem', 'zywienie-dla-zdrowia' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $issues as $issue ) : ?>
+					<tr>
+						<td><?php echo esc_html( $issue->get_entry_name() ); ?></td>
+						<td><?php echo esc_html( self::get_lab_issue_message( $issue->get_error_code() ) ); ?></td>
+					</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php
+	}
+
+	/**
 	 * Renders a whitelisted refresh result notice after PRG redirect.
 	 *
 	 * @return void
@@ -179,10 +404,10 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 
 		if ( 'success' === $refresh_status ) {
 			$notice_class = 'notice-success';
-			$message      = __( 'Katalog jadłospisów został odświeżony.', 'zywienie-dla-zdrowia' );
+			$message      = __( 'Dane jadłospisów i wyników badań zostały odświeżone.', 'zywienie-dla-zdrowia' );
 		} else {
 			$notice_class = 'notice-error';
-			$message      = __( 'Nie udało się odświeżyć katalogu jadłospisów. Sprawdź stan storage i zgłoszone problemy.', 'zywienie-dla-zdrowia' );
+			$message      = __( 'Nie udało się odświeżyć wszystkich danych. Sprawdź status techniczny i zgłoszone problemy.', 'zywienie-dla-zdrowia' );
 		}
 		?>
 		<div class="notice <?php echo esc_attr( $notice_class ); ?>">
@@ -272,6 +497,60 @@ final class ZFDZ_WordPress_Admin_Status_Page {
 			ZFDZ_PDF_File_Validator::ERROR_MIME_DETECTION_FAILED,
 			ZFDZ_PDF_File_Validator::ERROR_FILE_READ_FAILED => __( 'Nie udało się prawidłowo odczytać pliku.', 'zywienie-dla-zdrowia' ),
 			default => __( 'Wykryto problem z plikiem lub wpisem.', 'zywienie-dla-zdrowia' ),
+		};
+	}
+
+	/**
+	 * Maps a laboratory result directory-level error code to a safe Polish message.
+	 *
+	 * @param string|null $error_code Directory error code.
+	 * @return string
+	 */
+	private static function get_lab_directory_error_message( ?string $error_code ): string {
+		return match ( $error_code ) {
+			ZFDZ_Lab_Result_Directory_Scanner::ERROR_DIRECTORY_NOT_FOUND => __( 'Katalog wyników badań nie istnieje.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Directory_Scanner::ERROR_NOT_A_DIRECTORY => __( 'W lokalizacji katalogu wyników badań znajduje się wpis innego typu.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Directory_Scanner::ERROR_DIRECTORY_NOT_READABLE,
+			ZFDZ_WordPress_Lab_Result_Storage::ERROR_STORAGE_NOT_READABLE => __( 'Katalog wyników badań nie jest dostępny do odczytu.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Directory_Scanner::ERROR_DIRECTORY_SCAN_FAILED => __( 'Nie udało się odczytać zawartości katalogu wyników badań.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_WordPress_Lab_Result_Storage::ERROR_UPLOADS_UNAVAILABLE => __( 'Katalog przesyłanych plików WordPress jest niedostępny.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_WordPress_Lab_Result_Storage::ERROR_STORAGE_UNSAFE_SYMLINK => __( 'Zarządzany katalog wyników badań nie może być dowiązaniem symbolicznym.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_WordPress_Lab_Result_Storage::ERROR_STORAGE_PATH_CONFLICT => __( 'W lokalizacji katalogu wyników badań znajduje się kolidujący wpis.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_WordPress_Lab_Result_Storage::ERROR_STORAGE_CREATE_FAILED => __( 'Nie udało się przygotować katalogu wyników badań.', 'zywienie-dla-zdrowia' ),
+			default => __( 'Nie można odczytać katalogu wyników badań.', 'zywienie-dla-zdrowia' ),
+		};
+	}
+
+	/**
+	 * Maps a laboratory result entry-level issue code to a safe Polish message.
+	 *
+	 * @param string $error_code Entry-level issue code.
+	 * @return string
+	 */
+	private static function get_lab_issue_message( string $error_code ): string {
+		return match ( $error_code ) {
+			ZFDZ_Lab_Result_Filename_Parser::ERROR_INVALID_PATH => __( 'Nazwa wpisu zawiera niedozwolone elementy ścieżki.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Filename_Parser::ERROR_UNSUPPORTED_EXTENSION => __( 'Nieobsługiwane rozszerzenie pliku.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Filename_Parser::ERROR_INVALID_FORMAT => __( 'Nazwa pliku nie jest zgodna z wymaganą konwencją wyników badań.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Filename_Parser::ERROR_INVALID_MENU_START_DATE => __( 'Nieprawidłowa data początku okresu jadłospisu w nazwie pliku.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Filename_Parser::ERROR_INVALID_MENU_END_DATE => __( 'Nieprawidłowa data końca okresu jadłospisu w nazwie pliku.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Filename_Parser::ERROR_INVALID_RESULT_DATE => __( 'Nieprawidłowa data wyniku w nazwie pliku.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Filename_Parser::ERROR_INVALID_MENU_DATE_RANGE => __( 'Data końca okresu jadłospisu jest wcześniejsza niż data początku.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Filename_Parser::ERROR_INVALID_NAME => __( 'Nazwa dokumentu jest nieprawidłowa.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Scan_Issue::ERROR_UNSAFE_SYMLINK => __( 'Dowiązania symboliczne nie są obsługiwane.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_Lab_Result_Scan_Issue::ERROR_UNSUPPORTED_ENTRY_TYPE => __( 'Nieobsługiwany typ wpisu w katalogu.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_PDF_File_Validator::ERROR_FILE_NOT_FOUND => __( 'Plik nie istnieje lub został usunięty podczas odczytu.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_PDF_File_Validator::ERROR_NOT_A_REGULAR_FILE => __( 'Wpis nie jest zwykłym plikiem.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_PDF_File_Validator::ERROR_EMPTY_FILE => __( 'Plik jest pusty.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_PDF_File_Validator::ERROR_UNSUPPORTED_MIME_TYPE => __( 'Zawartość pliku nie została rozpoznana jako PDF.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_PDF_File_Validator::ERROR_INVALID_PDF_HEADER => __( 'Plik nie ma prawidłowego nagłówka PDF.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_PDF_File_Validator::ERROR_INVALID_PDF_EOF => __( 'Plik PDF nie zawiera oczekiwanego markera końcowego.', 'zywienie-dla-zdrowia' ),
+			ZFDZ_PDF_File_Validator::ERROR_FILE_NOT_READABLE,
+			ZFDZ_PDF_File_Validator::ERROR_FILE_OPEN_FAILED,
+			ZFDZ_PDF_File_Validator::ERROR_FILE_STAT_FAILED,
+			ZFDZ_PDF_File_Validator::ERROR_MIME_DETECTION_FAILED,
+			ZFDZ_PDF_File_Validator::ERROR_FILE_READ_FAILED => __( 'Nie udało się prawidłowo odczytać pliku.', 'zywienie-dla-zdrowia' ),
+			default => __( 'Wystąpił problem z tym plikiem.', 'zywienie-dla-zdrowia' ),
 		};
 	}
 }
