@@ -4,13 +4,13 @@
 
 The repository is generic and is not tied to any particular organization or deployment.
 
-> **Development status:** version `0.1.0` is an early development version. The standalone menu pipeline and period classifier, WordPress uploads integration, transient-backed catalog service, technical administration page, public menu shortcodes, and the standalone laboratory-result filesystem catalog pipeline are implemented. WordPress integration and public presentation of laboratory results remain planned. This version is not production-ready.
+> **Development status:** version `0.1.0` is an early development version. The standalone menu pipeline and period classifier, WordPress uploads integration, transient-backed menu catalog service, technical administration page, public menu shortcodes, standalone laboratory-result filesystem pipeline, and the first WordPress laboratory-result storage/provider integration are implemented. Laboratory-result caching, administration, latest-result policy, and public presentation remain planned. This version is not production-ready.
 
 ## Status
 
 ### Implemented
 
-- A WordPress plugin bootstrap with a valid plugin header, direct-access guard, and activation lifecycle for menu storage.
+- A WordPress plugin bootstrap with a valid plugin header, direct-access guard, and activation lifecycle for menu and laboratory-result storage.
 - A standalone parser for menu filenames using the `YYYY-MM-DD_YYYY-MM-DD_name.pdf` convention, with an immutable document model and machine-readable parse errors.
 - A standalone, non-recursive menu directory scanner that rejects symlinks, reports unrecognized entries, sorts documents by filename dates, and groups exact periods deterministically.
 - A standalone PDF candidate validator with symlink, regular-file, readability, optional MIME, header, and bounded EOF checks.
@@ -21,6 +21,7 @@ The repository is generic and is not tied to any particular organization or depl
 - A standalone, non-recursive laboratory-result directory scanner that rejects symlinks, preserves parser errors, and returns deterministically sorted recognized documents and issues.
 - A standalone laboratory-result catalog pipeline that reuses the bounded PDF candidate validator, excludes rejected files, combines deterministic scanner and validation issues, and returns validated documents with matched or unmatched menu-period associations.
 - WordPress uploads path resolution, activation-time creation of `zywienie-dla-zdrowia/jadlospisy/`, and a catalog provider connecting that directory to the standalone pipeline.
+- WordPress uploads path resolution and activation-time creation of `zywienie-dla-zdrowia/badania/`, plus a laboratory-result catalog provider that passes explicitly supplied validated menu groups to the standalone laboratory-result pipeline.
 - A WordPress Transients API cache with an approximately five-minute lifetime and a catalog service providing cached reads plus programmatic refresh and clear operations.
 - A native WordPress “Status publikacji” administration page with technical catalog status, current/upcoming/archived period counts based on the WordPress site date, safe issue descriptions, and a capability- and nonce-protected manual refresh using POST/Redirect/GET.
 - The parameter-free `[zfdz_jadlospisy]` shortcode, which groups validated PDF candidates by exact period and renders current and upcoming menu links using the WordPress uploads base URL.
@@ -33,7 +34,7 @@ The repository is generic and is not tied to any particular organization or depl
 ### Planned for v1.0
 
 - Menus (jadłospisy).
-- The `badania/` directory and its activation lifecycle, WordPress storage/cache/admin integration for laboratory results, latest-result policy, public shortcode, and frontend links.
+- Laboratory-result caching and service orchestration, administration UI, automatic menu/laboratory catalog coordination, latest-result policy, public shortcode, frontend links, and Options API configuration.
 - Educational materials (materiały edukacyjne).
 - A configurable link to an external feedback form or survey.
 - Any additional server-side, malware-detection, or document-sanitization controls required by a deployment.
@@ -61,7 +62,7 @@ The planned scope supports publishing the applicable meal plans, the latest labo
 
 ## Security and privacy principles
 
-The implemented scanner accepts a trusted directory path from application configuration, examines only its direct entries, rejects symlinks, and never reads or executes document content. The catalog builder validates only filename candidates approved by that scanner and combines scanner and validator issues without exposing source paths. Its final catalog contains candidates that passed filename validation, entry-type validation, and limited PDF candidate validation. WordPress storage rejects direct symlinks and conflicting files at the two plugin-managed directory paths. This does not constitute malware scanning, PDF sanitization, full PDF structure validation, or a guarantee of document safety, and it does not replace server security, antivirus controls, or administrator review. The administration page escapes untrusted entry names, and its refresh handler independently enforces `manage_options` plus a WordPress nonce. Future WordPress-facing functionality will follow the same validation, late escaping, capability, and nonce rules. Uploaded content will never be included or executed as PHP.
+The implemented scanner accepts a trusted directory path from application configuration, examines only its direct entries, rejects symlinks, and never reads or executes document content. The catalog builder validates only filename candidates approved by that scanner and combines scanner and validator issues without exposing source paths. Its final catalog contains candidates that passed filename validation, entry-type validation, and limited PDF candidate validation. WordPress storage rejects direct symlinks and conflicting files at each plugin-managed root or module directory. This does not constitute malware scanning, PDF sanitization, full PDF structure validation, or a guarantee of document safety, and it does not replace server security, antivirus controls, or administrator review. The administration page escapes untrusted entry names, and its refresh handler independently enforces `manage_options` plus a WordPress nonce. Future WordPress-facing functionality will follow the same validation, late escaping, capability, and nonce rules. Uploaded content will never be included or executed as PHP.
 
 The v1.0 design assumes that the plugin itself will not store patient data or survey responses, install cookies, send telemetry, or send data to external services. The survey feature will only link to a URL configured by an administrator; the plugin will not claim that the external form is anonymous.
 
@@ -76,10 +77,13 @@ During activation, the plugin resolves the current uploads base directory throug
 ```text
 <WordPress uploads basedir>/
 └── zywienie-dla-zdrowia/
-    └── jadlospisy/
+    ├── jadlospisy/
+    └── badania/
 ```
 
-Normal plugin loading does not create directories, scan documents, or build a catalog. Deactivation does not remove directories or documents, and this stage adds no uninstall cleanup. The WordPress catalog provider resolves the directory only when its `get_catalog()` method is explicitly called.
+The menu and laboratory-result storage classes resolve their locations independently from the same WordPress uploads base directory. Activation ensures both managed directories in sequence. A failure stops activation with a short translated message but does not roll back an already valid directory or remove documents. Normal plugin loading does not create directories, scan documents, or build a catalog. Deactivation does not remove directories or documents, and this stage adds no uninstall cleanup.
+
+The menu catalog provider resolves the menu directory only when its `get_catalog()` method is explicitly called. The laboratory-result provider likewise performs work only when explicitly called and accepts already validated menu-period groups from its consumer. It does not fetch the menu catalog automatically, create missing directories during reads, or add a laboratory-result cache.
 
 ## Menu catalog cache
 
@@ -133,7 +137,7 @@ The standalone parser rejects path input, non-PDF extensions, malformed or impos
 
 The matcher compares only `menu_start_date` and `menu_end_date` with existing `ZFDZ_Menu_Period_Group` dates. An absent exact period produces an unmatched association, not a parse, PDF-validation, or catalog issue. Associations and final documents are ordered deterministically by result date descending, menu dates descending, and original filename using binary `strcmp()` ascending. No latest-result selection policy is implemented.
 
-The plugin does not yet create a `badania/` directory and does not provide WordPress storage, cache, administration UI, shortcode, or public links for laboratory results. The standalone pipeline accepts a trusted directory path from a future application layer. Associating a result with a menu period from filename dates is a technical mechanism only. The plugin does not interpret laboratory content, assess the result, or confirm compliance with norms or legal requirements.
+Activation now idempotently creates the managed `badania/` directory below the WordPress uploads base directory. The WordPress laboratory-result catalog provider resolves that path and passes explicitly supplied validated menu-period groups into the standalone pipeline. It deliberately does not fetch the menu catalog itself. Laboratory-result cache/service orchestration, administration UI, latest-result policy, shortcode, public links, and Options API configuration are not implemented yet. Associating a result with a menu period from filename dates is a technical mechanism only. The plugin does not interpret laboratory content, assess the result, or confirm compliance with norms or legal requirements.
 
 ## Development
 
@@ -146,7 +150,7 @@ composer lint
 composer test
 ```
 
-There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, current/upcoming/archive period classifier, laboratory-result filename parser, exact-period matcher, non-recursive scanner, and validated catalog pipeline. The WordPress-specific storage lifecycle, transient cache layer, administration page, and public shortcodes are covered by lint and PHPCS at this stage and require manual smoke tests after review. The aggregate shortcode, remaining module frontend, expanded administration, and configuration are still planned.
+There are no runtime Composer dependencies. The unit tests run without WordPress and cover the standalone menu filename parser, directory scanner, PDF candidate validator, validated catalog pipeline, current/upcoming/archive period classifier, laboratory-result filename parser, exact-period matcher, non-recursive scanner, and validated catalog pipeline. The WordPress-specific menu and laboratory-result storage lifecycle/providers, transient cache layer, administration page, and public menu shortcodes are covered by lint and PHPCS at this stage and require manual smoke tests after review. Laboratory-result caching, automatic cross-catalog orchestration, the aggregate shortcode, remaining module frontend, expanded administration, and configuration are still planned.
 
 Contributions should follow [CONTRIBUTING.md](CONTRIBUTING.md) and the repository instructions in [AGENTS.md](AGENTS.md).
 

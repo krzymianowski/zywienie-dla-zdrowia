@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- WordPress uploads-based laboratory-result storage with activation-time, idempotent creation of the managed `zywienie-dla-zdrowia/badania/` directory and non-destructive retention behavior.
+- WordPress laboratory-result catalog provider connecting explicitly supplied validated menu-period groups and the managed `badania/` directory to the standalone laboratory-result pipeline.
 - Standalone, non-recursive laboratory-result directory scanner with immutable scan issues/results and deterministic entry handling.
 - Standalone laboratory-result catalog pipeline reusing the bounded PDF candidate validator and exact-period matcher.
 - Immutable laboratory-result catalog result containing validated candidates, matched or unmatched associations, and combined deterministic issues without source paths.

@@ -4,13 +4,13 @@
 
 Repozytorium jest generyczne i nie jest związane z żadną konkretną organizacją ani wdrożeniem.
 
-> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline i classifier okresów jadłospisów, integracja z WordPress uploads, serwis katalogu oparty na transientach, techniczna strona administracyjna, publiczne shortcode’y jadłospisów oraz standalone filesystem catalog pipeline wyników badań są zaimplementowane. Integracja wyników badań z WordPressem i ich publiczna prezentacja nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
+> **Status projektu:** wersja `0.1.0` jest wczesną wersją developerską. Standalone pipeline i classifier okresów jadłospisów, integracja z WordPress uploads, serwis katalogu jadłospisów oparty na transientach, techniczna strona administracyjna, publiczne shortcode’y jadłospisów, standalone filesystem pipeline wyników badań oraz pierwsza integracja WordPress storage/provider dla badań są zaimplementowane. Cache, administracja, polityka najnowszego wyniku i publiczna prezentacja badań nadal są planowane. Ta wersja nie jest gotowa do użycia produkcyjnego.
 
 ## Status funkcjonalności
 
 ### Zaimplementowano (Implemented)
 
-- Plik startowy wtyczki z poprawnym nagłówkiem, ochroną przed bezpośrednim uruchomieniem i lifecycle aktywacji storage jadłospisów.
+- Plik startowy wtyczki z poprawnym nagłówkiem, ochroną przed bezpośrednim uruchomieniem i lifecycle aktywacji storage jadłospisów oraz wyników badań.
 - Niezależny parser nazw jadłospisów zgodnych z konwencją `YYYY-MM-DD_YYYY-MM-DD_nazwa.pdf`, niezmienny model dokumentu i maszynowo czytelne błędy parsowania.
 - Niezależny, nierekurencyjny scanner katalogu jadłospisów, który odrzuca symlinki, raportuje nierozpoznane wpisy, sortuje dokumenty według dat z nazw i deterministycznie grupuje identyczne okresy.
 - Niezależny validator kandydatów PDF sprawdzający symlink, zwykły i czytelny plik, opcjonalne MIME, nagłówek oraz marker EOF w ograniczonym fragmencie końca.
@@ -21,6 +21,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 - Niezależny, nierekurencyjny scanner katalogu wyników badań, który odrzuca symlinki, zachowuje błędy parsera i deterministycznie porządkuje rozpoznane dokumenty oraz issues.
 - Niezależny pipeline katalogu wyników badań, który wykorzystuje istniejący bounded PDF candidate validator, pomija odrzucone pliki, łączy deterministyczne issues i zwraca zwalidowane dokumenty wraz z associations matched lub unmatched.
 - Wyznaczanie ścieżki przez WordPress uploads API, tworzenie `zywienie-dla-zdrowia/jadlospisy/` podczas aktywacji oraz provider łączący ten katalog ze standalone pipeline.
+- Wyznaczanie przez WordPress uploads API i tworzenie podczas aktywacji katalogu `zywienie-dla-zdrowia/badania/` oraz provider przekazujący jawnie dostarczone, zwalidowane grupy jadłospisów do standalone pipeline badań.
 - Cache WordPress Transients API o czasie życia około pięciu minut oraz serwis katalogu udostępniający odczyt z cache i programowe operacje refresh/clear.
 - Natywną stronę administracyjną WordPress „Status publikacji” ze statusem technicznym katalogu, licznikami okresów aktualnych/nadchodzących/archiwalnych względem daty witryny WordPress, bezpiecznymi opisami problemów i ręcznym odświeżaniem chronionym capability oraz nonce w przepływie POST/Redirect/GET.
 - Bezparametrowy shortcode `[zfdz_jadlospisy]`, który grupuje zwalidowanych kandydatów PDF według dokładnego okresu oraz renderuje linki do aktualnych i nadchodzących jadłospisów na podstawie WordPress uploads base URL.
@@ -33,7 +34,7 @@ Repozytorium jest generyczne i nie jest związane z żadną konkretną organizac
 ### Planowane dla v1.0 (Planned for v1.0)
 
 - Jadłospisy.
-- Katalog `badania/` i jego lifecycle aktywacji, WordPress storage/cache/panel wyników badań, polityka wyboru najnowszego wyniku, publiczny shortcode i linki frontendu.
+- Cache i serwis wyników badań, panel administratora, automatyczna koordynacja katalogów jadłospisów i badań, polityka wyboru najnowszego wyniku, publiczny shortcode, linki frontendu oraz konfiguracja Options API.
 - Materiały edukacyjne.
 - Konfigurowalny link do zewnętrznego formularza uwag lub ankiety.
 - Dodatkowe zabezpieczenia serwerowe, antywirusowe lub sanitizacja dokumentów wymagane przez konkretne wdrożenie.
@@ -61,7 +62,7 @@ Planowany zakres wspiera publikację stosowanych jadłospisów, ostatniego wynik
 
 ## Bezpieczeństwo i prywatność
 
-Zaimplementowany scanner przyjmuje zaufaną ścieżkę katalogu z konfiguracji aplikacji, sprawdza wyłącznie bezpośrednie wpisy, odrzuca symlinki oraz nigdy nie czyta ani nie wykonuje zawartości dokumentów. Builder katalogu waliduje wyłącznie kandydatów filename zaakceptowanych przez scanner i łączy problemy scannera oraz validatora bez ujawniania ścieżek źródłowych. Finalny katalog zawiera kandydatów, którzy przeszli walidację nazwy, typu wpisu i ograniczoną walidację PDF candidate. WordPress storage odrzuca bezpośrednie symlinki i kolidujące pliki w dwóch ścieżkach zarządzanych przez plugin. Nie oznacza to skanowania malware, sanitizacji PDF, pełnej walidacji struktury PDF ani gwarancji bezpieczeństwa dokumentu i nie zastępuje zabezpieczeń serwera, antywirusa ani kontroli administratora. Strona administracyjna wykonuje escaping niezaufanych nazw wpisów, a handler odświeżania niezależnie wymaga `manage_options` i nonce WordPressa. Przyszłe funkcje WordPress zachowają te same zasady walidacji, późnego escaping, capability i nonce. Zawartość katalogu uploads nie będzie dołączana ani wykonywana jako PHP.
+Zaimplementowany scanner przyjmuje zaufaną ścieżkę katalogu z konfiguracji aplikacji, sprawdza wyłącznie bezpośrednie wpisy, odrzuca symlinki oraz nigdy nie czyta ani nie wykonuje zawartości dokumentów. Builder katalogu waliduje wyłącznie kandydatów filename zaakceptowanych przez scanner i łączy problemy scannera oraz validatora bez ujawniania ścieżek źródłowych. Finalny katalog zawiera kandydatów, którzy przeszli walidację nazwy, typu wpisu i ograniczoną walidację PDF candidate. WordPress storage odrzuca bezpośrednie symlinki i kolidujące pliki w każdej zarządzanej ścieżce root lub modułu. Nie oznacza to skanowania malware, sanitizacji PDF, pełnej walidacji struktury PDF ani gwarancji bezpieczeństwa dokumentu i nie zastępuje zabezpieczeń serwera, antywirusa ani kontroli administratora. Strona administracyjna wykonuje escaping niezaufanych nazw wpisów, a handler odświeżania niezależnie wymaga `manage_options` i nonce WordPressa. Przyszłe funkcje WordPress zachowają te same zasady walidacji, późnego escaping, capability i nonce. Zawartość katalogu uploads nie będzie dołączana ani wykonywana jako PHP.
 
 Projekt v1.0 zakłada, że sama wtyczka nie będzie przechowywać danych pacjentów ani odpowiedzi ankiet, instalować cookies, wysyłać telemetrii ani przekazywać danych do usług zewnętrznych. Moduł ankiety będzie jedynie odnośnikiem skonfigurowanym przez administratora; wtyczka nie będzie deklarować, że zewnętrzny formularz jest anonimowy.
 
@@ -76,10 +77,13 @@ Podczas aktywacji plugin wyznacza bieżący uploads basedir przez `wp_get_upload
 ```text
 <WordPress uploads basedir>/
 └── zywienie-dla-zdrowia/
-    └── jadlospisy/
+    ├── jadlospisy/
+    └── badania/
 ```
 
-Zwykłe ładowanie pluginu nie tworzy katalogów, nie skanuje dokumentów i nie buduje katalogu wynikowego. Dezaktywacja nie usuwa katalogów ani dokumentów, a ten etap nie dodaje cleanup przy uninstall. Provider katalogu WordPress wyznacza ścieżkę dopiero po jawnym wywołaniu `get_catalog()`.
+Storage jadłospisów i wyników badań niezależnie wyznaczają swoje lokalizacje z tego samego WordPress uploads basedir. Aktywacja zapewnia oba katalogi po kolei. Błąd zatrzymuje aktywację krótkim tłumaczalnym komunikatem, ale nie cofa poprawnie utworzonego katalogu i nie usuwa dokumentów. Zwykłe ładowanie pluginu nie tworzy katalogów, nie skanuje dokumentów i nie buduje katalogu wynikowego. Dezaktywacja nie usuwa katalogów ani dokumentów, a ten etap nie dodaje cleanup przy uninstall.
+
+Provider jadłospisów wyznacza ścieżkę dopiero po jawnym `get_catalog()`. Provider wyników badań również wykonuje pracę wyłącznie na jawne żądanie i przyjmuje od konsumenta już zwalidowane grupy okresów jadłospisów. Nie pobiera automatycznie katalogu jadłospisów, nie tworzy brakującego katalogu podczas odczytu i nie dodaje cache wyników badań.
 
 ## Cache katalogu jadłospisów
 
@@ -133,7 +137,7 @@ Standalone parser odrzuca wejścia ścieżkowe, rozszerzenia inne niż PDF, bł�
 
 Matcher porównuje wyłącznie `menu_start_date` i `menu_end_date` z datami istniejącej `ZFDZ_Menu_Period_Group`. Brak dokładnego okresu tworzy association unmatched, a nie błąd parsera, walidacji PDF lub katalogu. Associations i finalne documents są deterministycznie uporządkowane według daty wyniku malejąco, dat okresu malejąco i oryginalnego filename rosnąco przez binarny `strcmp()`. Polityka wyboru najnowszego wyniku nie jest jeszcze zaimplementowana.
 
-Plugin nie tworzy jeszcze katalogu `badania/` i nie udostępnia WordPress storage, cache, panelu, shortcode ani publicznych linków dla wyników badań. Standalone pipeline przyjmuje zaufaną ścieżkę katalogu z przyszłej warstwy aplikacji. Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
+Aktywacja tworzy teraz idempotentnie zarządzany katalog `badania/` pod WordPress uploads basedir. WordPress provider wyników badań wyznacza tę ścieżkę i przekazuje jawnie dostarczone, zwalidowane grupy okresów jadłospisów do standalone pipeline. Celowo nie pobiera sam katalogu jadłospisów. Cache/serwis wyników badań, panel, polityka najnowszego wyniku, shortcode, publiczne linki i konfiguracja Options API nie są jeszcze zaimplementowane. Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
 
 ## Development
 
@@ -146,7 +150,7 @@ composer lint
 composer test
 ```
 
-Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu, classifier okresów aktualne/nadchodzące/archiwalne, parser nazw wyników badań, matcher dokładnego okresu oraz nierekurencyjny scanner i zwalidowany pipeline katalogu wyników badań. WordPress-specific lifecycle storage, warstwa cache transientów, strona administracyjna i publiczne shortcode’y są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Zbiorczy shortcode, frontend pozostałych modułów, rozbudowana administracja i konfiguracja nadal są planowane.
+Projekt nie ma zależności runtime. Testy jednostkowe działają bez WordPressa i obejmują niezależny parser nazw, scanner katalogu jadłospisów, validator kandydatów PDF, pipeline zwalidowanego katalogu, classifier okresów aktualne/nadchodzące/archiwalne, parser nazw wyników badań, matcher dokładnego okresu oraz nierekurencyjny scanner i zwalidowany pipeline katalogu wyników badań. WordPress-specific lifecycle i providery storage jadłospisów oraz badań, warstwa cache transientów jadłospisów, strona administracyjna i publiczne shortcode’y jadłospisów są na tym etapie objęte lintem i PHPCS oraz wymagają manualnych smoke testów po review. Cache badań, automatyczna koordynacja katalogów, zbiorczy shortcode, frontend pozostałych modułów, rozbudowana administracja i konfiguracja nadal są planowane.
 
 Zasady współpracy opisują [CONTRIBUTING.md](CONTRIBUTING.md) oraz nadrzędne instrukcje repozytorium w [AGENTS.md](AGENTS.md).
 

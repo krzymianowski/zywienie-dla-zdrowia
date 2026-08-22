@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, a Etap 12 — standalone laboratory-result filesystem catalog pipeline. Konfiguracja przez Options API, WordPress pipeline badań, administracja pozostałych modułów i ich shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, Etap 12 — standalone laboratory-result filesystem catalog pipeline, a Etap 13 — WordPress storage, activation lifecycle i provider katalogu wyników badań. Konfiguracja przez Options API, cache i administracja badań, administracja pozostałych modułów oraz ich shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -199,7 +199,7 @@ Parser odrzuca NUL i separatory ścieżek, rozszerzenia inne niż PDF, błędną
 
 Matcher nie używa daty wyniku do ustalania grupy, nie stosuje fuzzy matching, nakładania zakresów, najbliższej daty, nazw, locale ani metadata filesystemu. Wiele wyników może wskazywać tę samą grupę. Brak dokładnej grupy tworzy association unmatched i nie jest wyjątkiem ani błędem parsera. Powtórzenie tego samego okresu w wejściowych grupach jest naruszeniem kontraktu programistycznego. Associations są sortowane według `result_date` malejąco, następnie `menu_start_date` malejąco, `menu_end_date` malejąco i oryginalnego filename rosnąco przez binarny `strcmp()`.
 
-Klasy Etapu 11 nie korzystają z filesystemu, WordPress API, zegara, `filemtime`, requestów ani zawartości dokumentów. Modele nie przechowują ścieżek, URL-i, MIME, treści ani WordPress IDs. Warstwy filesystemu i ograniczonej walidacji PDF candidate zostały dodane później w Etapie 12; nadal nie ma WordPress storage, cache, panelu, polityki wyboru najnowszego wyniku, publicznego shortcode ani linków frontendu dla badań.
+Klasy Etapu 11 nie korzystają z filesystemu, WordPress API, zegara, `filemtime`, requestów ani zawartości dokumentów. Modele nie przechowują ścieżek, URL-i, MIME, treści ani WordPress IDs. Warstwy filesystemu i ograniczonej walidacji PDF candidate zostały dodane później w Etapie 12, a WordPress storage i provider w Etapie 13. Nadal nie ma cache, panelu, polityki wyboru najnowszego wyniku, publicznego shortcode ani linków frontendu dla badań.
 
 Powiązanie wyniku z okresem jadłospisu na podstawie dat w nazwie jest mechanizmem technicznym. Plugin nie interpretuje treści badania, nie ocenia jego wyniku i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
 
@@ -217,7 +217,23 @@ Scanner działa deterministycznie, nie otwiera zawartości dokumentów i zachowu
 
 Finalny katalog zawiera associations w kolejności matchera: `result_date` malejąco, `menu_start_date` malejąco, `menu_end_date` malejąco oraz oryginalny filename rosnąco przez `strcmp()`. Documents są wyprowadzane z associations w tej samej kolejności i każdy validated document występuje dokładnie raz. Association unmatched jest prawidłowym stanem technicznym, nie entry-level issue ani invalid document. Etap 12 nie wprowadza polityki wyboru najnowszego wyniku.
 
-Pipeline przyjmuje zaufaną ścieżkę katalogu z przyszłej warstwy aplikacji, nie korzysta z WordPress API, zegara, `filemtime`, requestów ani locale i nie przechowuje ścieżek w publicznych modelach. Nie tworzy katalogu `badania/`, nie dodaje WordPress storage, cache, panelu lub publicznego frontendu. Ograniczona walidacja PDF candidate nie jest pełnym parserem PDF, skanowaniem malware ani sanitizacją. Pipeline nie interpretuje treści laboratoryjnej, nie ocenia wyniku i nie sprawdza norm.
+Pipeline przyjmuje zaufaną ścieżkę katalogu z warstwy aplikacji, nie korzysta z WordPress API, zegara, `filemtime`, requestów ani locale i nie przechowuje ścieżek w publicznych modelach. Ograniczona walidacja PDF candidate nie jest pełnym parserem PDF, skanowaniem malware ani sanitizacją. Pipeline nie interpretuje treści laboratoryjnej, nie ocenia wyniku i nie sprawdza norm.
+
+## Zaimplementowany zakres Etapu 13
+
+Etap 13 dodaje pierwszą WordPress-specific integrację modułu wyników badań laboratoryjnych:
+
+- `ZFDZ_WordPress_Lab_Result_Storage` pobiera uploads `basedir` wyłącznie przez `wp_get_upload_dir()` i wyznacza stały katalog `zywienie-dla-zdrowia/badania/`;
+- storage odrzuca bezpośrednie symlinki oraz kolidujące wpisy dla zarządzanego root i `badania/`, sprawdza czytelność istniejących katalogów, ale nie wymaga ich zapisywalności;
+- `ensure_lab_result_directory()` idempotentnie tworzy brakującą strukturę przez `wp_mkdir_p()` podczas aktywacji i po próbie tworzenia ponownie weryfikuje zarządzane wpisy;
+- activation lifecycle zapewnia kolejno katalog `jadlospisy/` oraz `badania/`; błąd przerywa aktywację krótkim tłumaczalnym komunikatem bez ścieżki, ale nie powoduje rollbacku ani usuwania dokumentów;
+- `ZFDZ_WordPress_Lab_Result_Catalog_Provider` łączy storage z istniejącym standalone `ZFDZ_Lab_Result_Catalog_Builder` dopiero po jawnym `get_catalog( $menu_groups )`;
+- provider przyjmuje już zwalidowane `ZFDZ_Menu_Period_Group` jawnie od konsumenta, nie pobiera sam katalogu jadłospisów i nie zmienia semantyki associations matched/unmatched;
+- storage failure jest mapowany na directory-level `ZFDZ_Lab_Result_Catalog_Result`, natomiast wyjątki kontraktowe standalone pipeline nie są przechwytywane ani zamieniane na błędy filesystemu.
+
+Zwykłe ładowanie pluginu jedynie ładuje klasy i rejestruje istniejące hooki. Nie tworzy katalogu badań, nie skanuje dokumentów, nie uruchamia validatora ani matchera i nie pobiera katalogu jadłospisów. Odczyt providera nie naprawia brakującego katalogu; tworzenie pozostaje odpowiedzialnością aktywacji. Dezaktywacja i uninstall nie usuwają katalogów ani dokumentów.
+
+Etap 13 nie dodaje cache, transientu, service layer, automatycznej koordynacji menu catalog + lab catalog, panelu administratora, polityki latest-result, shortcode, publicznych URL-i ani konfiguracji Options API dla wyników badań. Powiązanie wyniku z okresem jadłospisu na podstawie dat w filename pozostaje technicznym mechanizmem publikacyjnym. Plugin nie interpretuje treści badania, nie ocenia wyniku medycznie i nie potwierdza zgodności z normami lub wymaganiami prawnymi.
 
 ## Cel
 
@@ -260,22 +276,22 @@ Określenie ankiety w interfejsie może odzwierciedlać zamierzony sposób jej u
 
 ## Źródło dokumentów
 
-Zaimplementowany katalog jadłospisów znajduje się pod bieżącym uploads `basedir` zwróconym przez WordPress API:
+Zaimplementowane katalogi jadłospisów i wyników badań znajdują się pod bieżącym uploads `basedir` zwróconym przez WordPress API:
 
 ```text
 <WordPress uploads basedir>/
 └── zywienie-dla-zdrowia/
-    └── jadlospisy/
+    ├── jadlospisy/
+    └── badania/
 ```
 
-Etap 5 tworzy wyłącznie root pluginu i `jadlospisy/`. Nadal planowane podkatalogi pozostałych modułów:
+Etap 5 tworzy root pluginu i `jadlospisy/`, a Etap 13 dodaje zarządzany `badania/`. Nadal planowany podkatalog pozostałego modułu:
 
 ```text
-badania/
 materialy/
 ```
 
-Standalone scanner Etapu 2 i pipeline katalogu Etapu 4 nadal nie znają WordPress API. Storage Etapu 5 zarządza lokalizacją i lifecycle katalogu, a provider przekazuje ustaloną ścieżkę do standalone buildera dopiero na żądanie.
+Standalone scannery i pipeline katalogów jadłospisów oraz badań nadal nie znają WordPress API. Odpowiednie klasy storage zarządzają lokalizacją i lifecycle katalogów, a providery przekazują ustaloną ścieżkę do standalone buildera dopiero na żądanie. Provider badań dodatkowo wymaga jawnego przekazania już zwalidowanych grup jadłospisów i nie pobiera automatycznie menu catalog.
 
 WordPress-specific serwis Etapu 6 korzysta z providera i cache transientów. Nie zmienia publicznego modelu katalogu ani kontraktów standalone pipeline.
 
@@ -336,8 +352,8 @@ Zaimplementowane parser, scanner, catalog pipeline i matcher:
 
 Nadal planowane są:
 
-- katalog `badania/` i jego tworzenie podczas aktywacji;
-- WordPress storage, cache i panel administratora dla badań;
+- cache, service layer i panel administratora dla badań;
+- automatyczna WordPress-specific koordynacja menu catalog + lab catalog;
 - identyfikacja najnowszego wyniku na podstawie daty zapisanej w nazwie;
 - polityka wyboru najnowszego wyniku spośród wielu prawidłowych dokumentów;
 - publiczna prezentacja wyniku wraz z informacją, którego jadłospisu dotyczy;

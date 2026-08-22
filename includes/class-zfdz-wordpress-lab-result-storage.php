@@ -1,0 +1,156 @@
+<?php
+/**
+ * WordPress laboratory result document storage.
+ *
+ * @package ZywienieDlaZdrowia
+ */
+
+/**
+ * Resolves and prepares the managed laboratory result directory below WordPress uploads.
+ */
+final class ZFDZ_WordPress_Lab_Result_Storage {
+
+	public const ERROR_UPLOADS_UNAVAILABLE    = 'uploads_unavailable';
+	public const ERROR_STORAGE_UNSAFE_SYMLINK = 'storage_unsafe_symlink';
+	public const ERROR_STORAGE_PATH_CONFLICT  = 'storage_path_conflict';
+	public const ERROR_STORAGE_CREATE_FAILED  = 'storage_create_failed';
+	public const ERROR_STORAGE_NOT_READABLE   = 'storage_not_readable';
+
+	private const ROOT_DIRECTORY_NAME       = 'zywienie-dla-zdrowia';
+	private const LAB_RESULT_DIRECTORY_NAME = 'badania';
+
+	/**
+	 * Returns the managed laboratory result directory path without creating it.
+	 *
+	 * @return string|WP_Error
+	 */
+	public function get_lab_result_directory_path(): string|WP_Error {
+		$upload_base_directory = $this->get_upload_base_directory();
+
+		if ( is_wp_error( $upload_base_directory ) ) {
+			return $upload_base_directory;
+		}
+
+		$managed_root         = trailingslashit( $upload_base_directory ) . self::ROOT_DIRECTORY_NAME;
+		$lab_result_directory = trailingslashit( $managed_root ) . self::LAB_RESULT_DIRECTORY_NAME;
+
+		$root_error = $this->validate_managed_path( $managed_root );
+
+		if ( is_wp_error( $root_error ) ) {
+			return $root_error;
+		}
+
+		$lab_result_error = $this->validate_managed_path( $lab_result_directory );
+
+		if ( is_wp_error( $lab_result_error ) ) {
+			return $lab_result_error;
+		}
+
+		return $lab_result_directory;
+	}
+
+	/**
+	 * Creates the managed laboratory result directory when necessary and verifies it.
+	 *
+	 * @return true|WP_Error
+	 */
+	public function ensure_lab_result_directory(): true|WP_Error {
+		$lab_result_directory = $this->get_lab_result_directory_path();
+
+		if ( is_wp_error( $lab_result_directory ) ) {
+			return $lab_result_directory;
+		}
+
+		if ( ! is_dir( $lab_result_directory ) && ! wp_mkdir_p( $lab_result_directory ) ) {
+			$verification = $this->get_lab_result_directory_path();
+
+			if ( is_wp_error( $verification ) ) {
+				return $verification;
+			}
+
+			if ( ! is_dir( $verification ) ) {
+				return $this->create_error( self::ERROR_STORAGE_CREATE_FAILED );
+			}
+		}
+
+		$verification = $this->get_lab_result_directory_path();
+
+		if ( is_wp_error( $verification ) ) {
+			return $verification;
+		}
+
+		if ( ! is_dir( $verification ) ) {
+			return $this->create_error( self::ERROR_STORAGE_CREATE_FAILED );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Returns the WordPress uploads base directory after defensive validation.
+	 *
+	 * @return string|WP_Error
+	 */
+	private function get_upload_base_directory(): string|WP_Error {
+		$upload_directory = wp_get_upload_dir();
+
+		if (
+			! is_array( $upload_directory )
+			|| ! isset( $upload_directory['basedir'] )
+			|| ! is_string( $upload_directory['basedir'] )
+			|| '' === trim( $upload_directory['basedir'] )
+		) {
+			return $this->create_error( self::ERROR_UPLOADS_UNAVAILABLE );
+		}
+
+		if (
+			isset( $upload_directory['error'] )
+			&& false !== $upload_directory['error']
+			&& '' !== $upload_directory['error']
+		) {
+			return $this->create_error( self::ERROR_UPLOADS_UNAVAILABLE );
+		}
+
+		return $upload_directory['basedir'];
+	}
+
+	/**
+	 * Validates an existing plugin-managed filesystem entry.
+	 *
+	 * @param string $path Plugin-managed path.
+	 * @return WP_Error|null
+	 */
+	private function validate_managed_path( string $path ): ?WP_Error {
+		if ( is_link( $path ) ) {
+			return $this->create_error( self::ERROR_STORAGE_UNSAFE_SYMLINK );
+		}
+
+		if ( file_exists( $path ) && ! is_dir( $path ) ) {
+			return $this->create_error( self::ERROR_STORAGE_PATH_CONFLICT );
+		}
+
+		if ( is_dir( $path ) && ! is_readable( $path ) ) {
+			return $this->create_error( self::ERROR_STORAGE_NOT_READABLE );
+		}
+
+		return null;
+	}
+
+	/**
+	 * Creates a translated storage error without exposing filesystem paths.
+	 *
+	 * @param string $error_code Machine-readable storage error code.
+	 * @return WP_Error
+	 */
+	private function create_error( string $error_code ): WP_Error {
+		$messages = array(
+			self::ERROR_UPLOADS_UNAVAILABLE    => __( 'Nie można ustalić katalogu przesyłanych plików WordPress.', 'zywienie-dla-zdrowia' ),
+			self::ERROR_STORAGE_UNSAFE_SYMLINK => __( 'Zarządzany katalog wyników badań nie może być dowiązaniem symbolicznym.', 'zywienie-dla-zdrowia' ),
+			self::ERROR_STORAGE_PATH_CONFLICT  => __( 'Nie można przygotować katalogu wyników badań z powodu konfliktu w systemie plików.', 'zywienie-dla-zdrowia' ),
+			self::ERROR_STORAGE_CREATE_FAILED  => __( 'Nie udało się utworzyć katalogu wyników badań.', 'zywienie-dla-zdrowia' ),
+			self::ERROR_STORAGE_NOT_READABLE   => __( 'Katalog wyników badań nie jest dostępny do odczytu.', 'zywienie-dla-zdrowia' ),
+		);
+
+		return new WP_Error( $error_code, $messages[ $error_code ] );
+	}
+}

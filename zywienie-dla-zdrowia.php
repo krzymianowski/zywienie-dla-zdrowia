@@ -36,6 +36,8 @@ require_once __DIR__ . '/includes/class-zfdz-pdf-validation-result.php';
 require_once __DIR__ . '/includes/class-zfdz-pdf-file-validator.php';
 require_once __DIR__ . '/includes/class-zfdz-lab-result-catalog-result.php';
 require_once __DIR__ . '/includes/class-zfdz-lab-result-catalog-builder.php';
+require_once __DIR__ . '/includes/class-zfdz-wordpress-lab-result-storage.php';
+require_once __DIR__ . '/includes/class-zfdz-wordpress-lab-result-catalog-provider.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-catalog-result.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-catalog-builder.php';
 require_once __DIR__ . '/includes/class-zfdz-wordpress-menu-storage.php';
@@ -57,6 +59,15 @@ register_activation_hook(
 		if ( is_wp_error( $result ) ) {
 			wp_die(
 				esc_html__( 'Nie udało się przygotować katalogu jadłospisów. Sprawdź konfigurację i uprawnienia katalogu przesyłanych plików WordPress.', 'zywienie-dla-zdrowia' ),
+				esc_html__( 'Błąd aktywacji wtyczki', 'zywienie-dla-zdrowia' )
+			);
+		}
+
+		$result = ( new ZFDZ_WordPress_Lab_Result_Storage() )->ensure_lab_result_directory();
+
+		if ( is_wp_error( $result ) ) {
+			wp_die(
+				esc_html__( 'Nie udało się przygotować katalogu wyników badań. Sprawdź konfigurację i uprawnienia katalogu przesyłanych plików WordPress.', 'zywienie-dla-zdrowia' ),
 				esc_html__( 'Błąd aktywacji wtyczki', 'zywienie-dla-zdrowia' )
 			);
 		}
