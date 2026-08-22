@@ -2,7 +2,7 @@
 
 ## Status dokumentu
 
-To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, Etap 12 — standalone laboratory-result filesystem catalog pipeline, Etap 13 — WordPress storage, activation lifecycle i provider katalogu wyników badań, Etap 14 — skoordynowany serwis menu/lab i fingerprint-aware cache wyników badań, Etap 15 — techniczny status badań i skoordynowane odświeżanie na istniejącej stronie administracyjnej, Etap 16 — standalone politykę wyboru najnowszego wyniku badania, a Etap 17 — prezentację latest selection w panelu „Status publikacji”. Konfiguracja przez Options API, publiczna polityka prezentacji badań oraz pozostałe shortcode’y pozostają planowane.
+To robocza specyfikacja planowanego zakresu v1.0. Etap 0 został zakończony. Etap 1 dostarczył niezależny parser nazw jadłospisów i model dokumentu, Etap 2 — niezależny scanner katalogu, Etap 3 — ograniczony standalone validator kandydatów PDF, Etap 4 — standalone pipeline zwalidowanego katalogu jadłospisów, Etap 5 — pierwszą integrację z WordPress uploads i lifecycle katalogu `jadlospisy`, Etap 6 — WordPress-specific cache katalogu oraz serwis kontrolowanego odświeżania, Etap 7 — pierwszą techniczną stronę administracyjną „Status publikacji”, Etap 8 — standalone klasyfikację okresów oraz jej liczniki w panelu, Etap 9 — pierwszy publiczny shortcode aktualnych i nadchodzących jadłospisów, Etap 10 — osobny publiczny shortcode archiwalnych okresów, Etap 11 — standalone modele, parser filename i exact-period matcher wyników badań laboratoryjnych, Etap 12 — standalone laboratory-result filesystem catalog pipeline, Etap 13 — WordPress storage, activation lifecycle i provider katalogu wyników badań, Etap 14 — skoordynowany serwis menu/lab i fingerprint-aware cache wyników badań, Etap 15 — techniczny status badań i skoordynowane odświeżanie na istniejącej stronie administracyjnej, Etap 16 — standalone politykę wyboru najnowszego wyniku badania, Etap 17 — prezentację latest selection w panelu „Status publikacji”, a Etap 18 — standalone techniczną politykę publicznej prezentacji wyniku. Konfiguracja przez Options API, integracja decyzji prezentacji z WordPressem oraz pozostałe shortcode’y pozostają planowane.
 
 ## Zaimplementowany zakres Etapu 1
 
@@ -281,7 +281,31 @@ Etap 16 dodaje całkowicie standalone politykę wyboru najnowszego wyniku badani
 
 Selector nie ufa kolejności katalogu, nie używa filesystemu, `filemtime`, zegara, WordPress API, cache, issues ani treści PDF. Nie rewaliduje dokumentów i nie wykonuje ponownie parsera, validatora lub matchera. `result_date` bierze udział w wyborze niezależnie od tego, czy przypada przed okresem menu, w jego trakcie lub po nim. Polityka odpowiada wyłącznie, który zwalidowany dokument jest najnowszy i czy ma exact-period association; nie decyduje o publikacji.
 
-Etap 16 nie integruje selekcji z panelem Etapu 15, coordinated WordPress service, transientem ani frontendem. Lab cache nadal przechowuje pełny successful catalog, a oba istniejące klucze transientów i TTL pozostają bez zmian. Integracja WordPress/admin, publiczny shortcode, URL-e badań i reguły prezentacji pozostają planowane.
+Etap 16 nie integruje selekcji z coordinated WordPress service, transientem ani frontendem. Etap 17 wykorzystuje ją wyłącznie jako derived data panelu administracyjnego. Lab cache nadal przechowuje pełny successful catalog, a oba istniejące klucze transientów i TTL pozostają bez zmian. Publiczny shortcode, URL-e badań oraz integracja reguł prezentacji z WordPressem pozostają planowane.
+
+## Zaimplementowany zakres Etapu 18
+
+Etap 18 dodaje całkowicie standalone techniczną politykę publicznej prezentacji wyniku badania. Pipeline odpowiedzialności ma postać:
+
+```text
+validated associations
+→ Latest Selector
+→ Latest Selection
+→ Public Presentation Policy
+→ Public Presentation Decision
+```
+
+Immutable `ZFDZ_Lab_Result_Public_Presentation_Decision` reprezentuje dokładnie trzy stany:
+
+- `NO_RESULT` (`no_result`) powstaje wyłącznie dla latest selection `EMPTY` i nie zawiera association ani document;
+- `CANDIDATE` (`candidate`) powstaje wyłącznie dla `MATCHED`, zachowuje identity dokładnie tej matched association i jej document oraz oznacza tylko technicznego kandydata;
+- `BLOCKED_UNMATCHED` (`blocked_unmatched`) powstaje wyłącznie dla `UNMATCHED`, nie zawiera association ani document i dlatego nie wystawia unmatched dokumentu jako publicznego kandydata.
+
+`ZFDZ_Lab_Result_Public_Presentation_Policy` przyjmuje wyłącznie gotowy `ZFDZ_Lab_Result_Latest_Selection`; nie wybiera latest association, nie sortuje, nie porównuje dat i nie analizuje całego katalogu ani entry-level issues. Dokładne mapowanie to `EMPTY → NO_RESULT`, `MATCHED → CANDIDATE`, `UNMATCHED → BLOCKED_UNMATCHED`. Latest unmatched blokuje kandydata bez fallbacku do starszego matched dokumentu. Z kolei latest matched pozostaje kandydatem nawet wtedy, gdy pełny katalog zawiera starszą association unmatched.
+
+`CANDIDATE` nie jest zgodą prawną, medyczną ani administracyjną, gwarancją bezpieczeństwa dokumentu lub automatyczną publikacją. `UNAVAILABLE` nie jest stanem standalone decision: przy `menu_catalog_unavailable` albo `lab_catalog_unavailable` przyszła integracja WordPress nie może uruchamiać policy ani zastępować awarii przez `Latest_Selection::from_empty()`. Niedostępne źródło nie jest `NO_RESULT`.
+
+Klasy Etapu 18 nie używają WordPress API, filesystemu, PDF, paths, URL-i, `filemtime`, zegara, locale, requestów, cookies, telemetryki ani zewnętrznych zależności runtime. Decision nie jest cache’owana osobno. Etap nie zmienia admin UI, frontendu, shortcode’ów, publicznych URL-i, coordinated service ani obu istniejących transientów i TTL.
 
 ## Cel
 
@@ -397,12 +421,14 @@ Zaimplementowane parser, scanner, catalog pipeline i matcher:
 - wykorzystują istniejący bounded PDF candidate validator wyłącznie dla nazw zaakceptowanych przez parser;
 - tworzą finalny katalog validated laboratory-result candidates z associations matched lub unmatched i deterministycznie połączonymi issues;
 - wybierają najnowszą association niezależnie od kolejności wejścia według `result_date` DESC, dat okresu DESC i filename `strcmp()` ASC, zachowując najnowszy unmatched bez fallbacku;
+- mapują latest selection przez standalone public presentation policy: `EMPTY → NO_RESULT`, `MATCHED → CANDIDATE`, `UNMATCHED → BLOCKED_UNMATCHED`, bez ujawniania blocked dokumentu i bez analizowania issues lub całego katalogu;
 - nie używają WordPress API, `filemtime`, locale ani bieżącego czasu.
 
 Nadal planowane są:
 
-- publiczna prezentacja wyniku wraz z informacją, którego jadłospisu dotyczy;
-- publiczny i zbiorczy shortcode oraz linkowanie w frontendzie.
+- integracja public presentation decision z WordPressem oraz publiczna prezentacja wyniku wraz z informacją, którego jadłospisu dotyczy;
+- publiczny i zbiorczy shortcode, URL wyniku oraz linkowanie w frontendzie;
+- ewentualny workflow zatwierdzania, jeżeli zostanie świadomie zaprojektowany.
 
 Nazwy plików są traktowane jako niezaufane dane wejściowe. Scanner nie otwiera treści dokumentów, a ograniczony validator wykonuje tylko bounded reads wymagane do sprawdzenia kandydata PDF. Pipeline nie interpretuje treści PDF i nie ocenia wyniku badania medycznie ani normatywnie.
 
@@ -489,7 +515,7 @@ Architektura ma pozostać możliwie prosta. Nowe warstwy i abstrakcje powinny po
 - Inny fingerprint, uszkodzony payload lub failed cached catalog powoduje usunięcie transientu i cache miss.
 - `refresh_result()` czyści lab cache przed `menu_catalog_service->refresh_catalog()`, a następnie świeżo buduje lab catalog bez odczytu starego lab cache.
 - `clear_cache()` czyści tylko `zfdz_lab_result_catalog_v1`; nie usuwa `zfdz_menu_catalog_v1`.
-- Etap 15 konsumuje coordinated result w technicznym admin UI. Etap 17 wylicza standalone latest selection podczas successful renderowania panelu; wynik selekcji nie trafia do cache i nadal nie jest używany przez publiczny frontend.
+- Etap 15 konsumuje coordinated result w technicznym admin UI. Etap 17 wylicza standalone latest selection podczas successful renderowania panelu. Etap 18 mapuje selection na standalone public presentation decision, ale ani selection, ani decision nie trafiają do cache i frontend nadal ich nie konsumuje.
 
 ## Integracja ze stroną WordPress
 

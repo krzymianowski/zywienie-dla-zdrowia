@@ -30,6 +30,8 @@ require_once __DIR__ . '/includes/class-zfdz-lab-result-menu-association.php';
 require_once __DIR__ . '/includes/class-zfdz-lab-result-menu-matcher.php';
 require_once __DIR__ . '/includes/class-zfdz-lab-result-latest-selection.php';
 require_once __DIR__ . '/includes/class-zfdz-lab-result-latest-selector.php';
+require_once __DIR__ . '/includes/class-zfdz-lab-result-public-presentation-decision.php';
+require_once __DIR__ . '/includes/class-zfdz-lab-result-public-presentation-policy.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-period-classification.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-period-classifier.php';
 require_once __DIR__ . '/includes/class-zfdz-menu-scan-result.php';
